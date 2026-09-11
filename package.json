@@ -1,0 +1,27 @@
+{
+  "name": "rocktier-cad-viewer",
+  "productName": "Rocktier CAD Viewer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "fixtures": "node fixtures/gen.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "@tauri-apps/plugin-opener": "^2"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@tauri-apps/cli": "^2",
+    "@types/node": "^22.20.2",
+    "svelte": "^5.57.0",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16"
+  }
+}

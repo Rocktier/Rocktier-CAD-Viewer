@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod dwg_tests;
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
@@ -9,37 +12,40 @@ use crate::dxf_io;
 use crate::model::encode_blob;
 use crate::tess;
 
+/// Process-wide monotonic counter for unique temp-file names.
+static DWG_SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
 /// Convert a DWG file to DXF via the system `dwg2dxf` CLI (LibreDWG).
-/// Returns the path of the temporary DXF file on success.
+///
+/// Output is written as R14 DXF — this suppresses LibreDWG's binary preview
+/// chunks (which carry an unknown BMP header version that the `dxf` 0.6 crate
+/// cannot decode) and emits only classic DXF group codes that our sanitizer
+/// handles well.
+///
+/// Temp-file names embed a monotonic sequence number so concurrent calls never
+/// collide even when `process::id` is reused across parallel test threads.
 fn convert_dwg_to_temp(dwg_path: &Path) -> Result<PathBuf, String> {
     if !dwg_path.is_file() {
         return Err(format!("文件不存在: {}", dwg_path.display()));
     }
 
-    // Build a temp path: same stem, .dxf suffix, in the system temp dir.
     let stem = dwg_path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("drawing");
-    let mut tmp = std::env::temp_dir();
-    let name = format!("rcv_dwg_{stem}_{}.dwg", std::process::id());
-    tmp.push(&name);
-    if tmp.exists() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    tmp.set_extension("dxf");
-    if tmp.exists() {
-        let _ = std::fs::remove_file(&tmp);
+    let seq = DWG_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let mut output_path = std::env::temp_dir();
+    output_path.push(format!("rcv_dwg_{stem}_{seq}.dxf"));
+    if output_path.exists() {
+        let _ = std::fs::remove_file(&output_path);
     }
 
-    // Run: dwg2dxf -y -o output.dxf input.dwg
-    // We need the output path to match the -o arg exactly.
-    let output_path = tmp.clone();
     let out_arg = output_path.to_string_lossy().to_string();
     let in_arg = dwg_path.to_string_lossy().to_string();
 
+    // --as r14: skip binary preview chunks; classic DXF only.
     let status = Command::new("dwg2dxf")
-        .args(["-y", "-o", &out_arg, &in_arg])
+        .args(["--as", "r14", "-y", "-o", &out_arg, &in_arg])
         .status()
         .map_err(|e| format!("启动 dwg2dxf 失败: {e}（请先 brew install libredwg）"))?;
 

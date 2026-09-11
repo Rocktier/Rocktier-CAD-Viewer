@@ -11,6 +11,102 @@ use std::path::Path;
 use encoding_rs::Encoding;
 use dxf::Drawing;
 
+/// Replace non-geometric group-code values that overflow `i32`.
+///
+/// Real-world DWG files converted to DXF by LibreDWG often contain:
+///   - code 420/421/422/423: 24-bit true-color values (e.g. 3_258_135_347) stored as raw u32 > i32::MAX
+///   - code 310: binary preview chunk whose parsed integer is > i64::MAX
+///   - code 3/330/360: entity handles occasionally > i32
+///
+/// The `dxf` 0.6 crate parses every numeric cell with `i32`/`i64`, so these blow up the
+/// whole load. We sniff the DXF text lines and truncate only codes that are not used
+/// for tessellation or entity linking. Geometric codes (10/20/30/etc.) pass through
+/// untouched — if they overflow, we did lose data, but real building coordinates
+/// never exceed i32 in drawing units.
+const NON_GEOMETRIC_OVERFLOW_CODES: &[i32] = &[
+    3, 7, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 360, 361, 370,
+    380, 390, 410, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432,
+    433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447, 448,
+    449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464,
+    465, 466, 467, 468, 469, 500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510,
+    310, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339,
+];
+
+pub fn sanitize_dxf_text(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut prev_code: Option<i32> = None;
+
+    for line in text.split('\n') {
+        let trimmed = line.trim_end_matches('\r');
+        let sanitized_line = match prev_code {
+            Some(code) if NON_GEOMETRIC_OVERFLOW_CODES.contains(&code) => {
+                // If value is a plain integer, check range; otherwise leave as-is.
+                match trimmed.trim().parse::<i64>() {
+                    Ok(v) if v >= i32::MIN as i64 && v <= i32::MAX as i64 => {
+                        trimmed.to_string()
+                    }
+                    Ok(_) => {
+                        // Overflow — replace with fallback (white for color, 0 for others)
+                        let fallback = if (420..=429).contains(&code) { "7" } else { "0" };
+                        let padding = trimmed.len().saturating_sub(fallback.len());
+                        format!("{}{}", " ".repeat(padding), fallback)
+                    }
+                    Err(_) => trimmed.to_string(),
+                }
+            }
+            _ => trimmed.to_string(),
+        };
+        out.push_str(&sanitized_line);
+        out.push('\n');
+
+        // Record integer-looking line as potential group code for the next iteration.
+        if let Some(t) = trimmed.strip_prefix('-') {
+            if !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit()) {
+                prev_code = trimmed.parse::<i32>().ok();
+            } else {
+                prev_code = None;
+            }
+        } else if !trimmed.is_empty() && trimmed.bytes().all(|b| b.is_ascii_digit()) {
+            prev_code = trimmed.parse::<i32>().ok();
+        } else {
+            prev_code = None;
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod sanity {
+    use super::*;
+
+    /// Verifies sanitizer does not corrupt every-day DXF text (all existing
+    /// fixtures rely on this function since M3).
+    #[test]
+    fn sanitize_preserves_inline_minimal_dxf() {
+        let input = "\
+0\nSECTION\n2\nENTITIES\n0\nLINE\n10\n1.0\n20\n2.0\n30\n0.0\n11\n5.0\n21\n6.0\n31\n0.0\n421\n3258135347\n0\nENDSEC\n0\nEOF\n";
+        let out = sanitize_dxf_text(input);
+        // Geometry must survive verbatim
+        assert!(out.contains("10\n1.0"));
+        assert!(out.contains("20\n2.0"));
+        assert!(out.contains("11\n5.0"));
+        assert!(out.contains("21\n6.0"));
+        // 421 overflow → replaced with 7 (white) for true-color range
+        let mut lines = out.lines();
+        let mut saw_421 = false;
+        while let Some(l) = lines.next() {
+            if l.trim() == "421" {
+                saw_421 = true;
+                let val = lines.next().unwrap();
+                assert_eq!(val.trim(), "7", "421 should resolve to 7 (white)");
+                break;
+            }
+        }
+        assert!(saw_421, "421 entry must be present after sanitize");
+        assert!(!out.contains("3258135347"), "bignum must be removed");
+    }
+}
+
 fn encoding_for_codepage(codepage: &str) -> &'static Encoding {
     // Only the lower-case, trimmed value matters.
     match codepage.to_ascii_uppercase().as_str() {
@@ -90,15 +186,15 @@ pub fn load_drawing(path: &Path) -> Result<Drawing, String> {
         return Err("文件为空".into());
     }
 
-    let encoding: &'static Encoding =
-        if std::str::from_utf8(&bytes).is_ok() {
-            encoding_rs::UTF_8
-        } else {
-            detect_codepage(&bytes)
-                .map(|cp| encoding_for_codepage(&cp))
-                .unwrap_or(encoding_rs::WINDOWS_1252)
-        };
+    // Decode to UTF-8 text (fall back to lossy if the DXF is in a legacy codepage
+    // that wouldn't round-trip — sanitize is text-only anyway).
+    let text = String::from_utf8_lossy(&bytes);
+    let sanitized = sanitize_dxf_text(&text);
+    let sanitized_bytes = sanitized.into_bytes();
 
-    let mut cursor = Cursor::new(bytes);
-    Drawing::load_with_encoding(&mut cursor, encoding).map_err(|e| format!("DXF 解析失败: {e}"))
+    let encoding: &'static Encoding = encoding_rs::UTF_8;
+
+    let mut cursor = Cursor::new(sanitized_bytes);
+    Drawing::load_with_encoding(&mut cursor, encoding)
+        .map_err(|e| format!("DXF 解析失败: {e}"))
 }

@@ -142,8 +142,10 @@
 
   function onWheel(e: WheelEvent) {
     e.preventDefault();
-    let factor = Math.exp(-e.deltaY * 0.0016);
-    if (e.deltaY === 0) factor = e.deltaX < 0 ? 1.1 : 0.9;
+    // Sensitivity raised so a single wheel notch (deltaY ≈ ±100) moves ~30%.
+    // Trackpad micro-events (deltaY ≈ ±2-5) still feel responsive.
+    let factor = Math.exp(-e.deltaY * 0.0032);
+    if (e.deltaY === 0) factor = e.deltaX < 0 ? 1.15 : 0.85;
     factor = Math.min(Math.max(factor, 0.25), 4);
     cam.zoomAt(e.offsetX, e.offsetY, factor);
     app.zoomPct = Math.round((cam.scale / cam.fitScale) * 100);

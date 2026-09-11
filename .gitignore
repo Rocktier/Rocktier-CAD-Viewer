@@ -31,3 +31,6 @@ rcv_dwg_*.dxf
 *.sln
 *.sw?
 HANDOFF.md
+
+# CatPaw session context
+.zcode/

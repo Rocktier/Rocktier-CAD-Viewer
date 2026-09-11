@@ -1239,16 +1239,18 @@ pub fn build_scene(drawing: &Drawing) -> Result<(SceneMeta, Vec<u8>), String> {
         layout_metas.push(meta_for_layout(lb, &mut geometry));
     }
 
-    let meta = SceneMeta {
-        layers: sb.layers,
-        layouts: layout_metas,
-        texts: sb.texts,
-        segments: segments_total,
-        text_count,
-        parse_ms: 0,
-        tess_ms: 0,
-        truncated: sb.text_truncated || budget.truncated,
-    };
+let meta = SceneMeta {
+    layers: sb.layers,
+    layouts: layout_metas,
+    texts: sb.texts,
+    segments: segments_total,
+    text_count,
+    parse_ms: 0,
+    tess_ms: 0,
+    convert_ms: 0,
+    was_dwg: false,
+    truncated: sb.text_truncated || budget.truncated,
+};
     Ok((meta, geometry))
 }
 

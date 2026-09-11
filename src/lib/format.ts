@@ -22,3 +22,9 @@ export function formatCount(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1) + "k";
   return String(n);
 }
+
+/** Format a millisecond duration for the status bar (e.g. "12ms", "1.3s"). */
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}

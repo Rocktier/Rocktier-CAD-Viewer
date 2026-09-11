@@ -7,7 +7,7 @@
   import AboutDialog from "./components/AboutDialog.svelte";
   import { app, openFile, setTheme, setLang } from "./lib/state.svelte";
   import { t } from "./lib/i18n.svelte";
-  import { formatCoord, formatCount } from "./lib/format";
+  import { formatCoord, formatCount, formatDuration } from "./lib/format";
 
   const VERSION = __APP_VERSION__;
 
@@ -51,7 +51,7 @@
       </svg>
       <span class="brand-word">Rocktier CAD Viewer<i></i></span>
     </div>
-    <span class="brand-sub">DXF · OFFLINE</span>
+    <span class="brand-sub">DXF · DWG · OFFLINE</span>
 
     {#if app.filePath}
       <span class="file-chip" title={app.filePath}>{app.fileName}</span>
@@ -134,7 +134,7 @@
       <span class="status-item">{t("zoom")} {app.zoomPct}%</span>
       <span class="status-item">{t("segs")} {formatCount(app.scene.meta.segments)}</span>
       <span class="status-item">{t("texts")} {formatCount(app.scene.meta.text_count)}</span>
-      <span class="status-item">{app.scene.meta.parse_ms + app.scene.meta.tess_ms}ms</span>
+      <span class="status-item">{formatDuration(app.scene.meta.parse_ms + app.scene.meta.tess_ms + app.scene.meta.convert_ms)}{app.scene.meta.was_dwg ? " (dwg)" : ""}</span>
     {:else}
       <span class="status-item"><i class="status-red"></i>{t("offline")}</span>
       <span class="grow"></span>

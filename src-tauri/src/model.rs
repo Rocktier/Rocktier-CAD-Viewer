@@ -72,6 +72,10 @@ pub struct SceneMeta {
     pub text_count: u64,
     pub parse_ms: u64,
     pub tess_ms: u64,
+    /// Time spent in dwg2dxf conversion (0 for native DXF).
+    pub convert_ms: u64,
+    /// True when the input was a DWG that was converted on-the-fly.
+    pub was_dwg: bool,
     pub truncated: bool,
 }
 

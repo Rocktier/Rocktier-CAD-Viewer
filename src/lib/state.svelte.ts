@@ -75,20 +75,17 @@ export function addRecent(path: string) {
 
 // ---------------------------------------------------------------- open
 
-/** Loads a drawing file through the Rust backend. */
+/** Loads a drawing file through the Rust backend (auto-converts DWG via dwg2dxf). */
 export async function openFile(path: string) {
   const lower = path.toLowerCase();
-  if (lower.endsWith(".dwg")) {
-    app.error = t("dwgSoon");
+  if (!lower.endsWith(".dxf") && !lower.endsWith(".dxb") && !lower.endsWith(".dwg")) {
+    app.error = t("unsupportedFmt");
     return;
   }
-  if (!lower.endsWith(".dxf") && !lower.endsWith(".dxb")) {
-    app.error = "DXF only · 仅支持 DXF";
-    return;
-  }
+  const wasDwg = lower.endsWith(".dwg");
   app.error = "";
   app.loading = true;
-  app.loadingMsg = t("parsing");
+  app.loadingMsg = wasDwg ? t("converting") : t("parsing");
   app.fileName = path.split(/[\\/]/).pop() ?? path;
   app.filePath = path;
   try {

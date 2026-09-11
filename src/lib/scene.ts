@@ -54,6 +54,10 @@ export interface SceneMeta {
   text_count: number;
   parse_ms: number;
   tess_ms: number;
+  /** Time spent in dwg2dxf conversion (0 for native DXF). */
+  convert_ms: number;
+  /** True when the input was a DWG that was converted on-the-fly. */
+  was_dwg: boolean;
   truncated: boolean;
 }
 

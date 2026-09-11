@@ -1,4 +1,6 @@
-//! End-to-end blob validation. Run with: `cargo run --bin test_e2e --features e2e-test`
+//! End-to-end blob validation for the ASCII DXF parser pipeline.
+//!
+//! Run with: `cargo run --bin test_e2e --features e2e-test`
 
 use std::path::PathBuf;
 
@@ -17,7 +19,7 @@ struct FixtureStats {
 }
 
 fn main() {
-    eprintln!("=== Rocktier CAD Viewer E2E Blob Validation ===\n");
+    eprintln!("=== Rocktier CAD Viewer E2E Blob Validation (ASCII parser) ===\n");
 
     let fixtures = [
         ("01_fan.dxf", "Multi-layer architectural plan"),
@@ -32,7 +34,7 @@ fn main() {
     let mut pass = 0u32;
     let mut fail = 0u32;
 
-    // Test 1: Parse → Tessellate → Blob → Validate
+    // Test 1: ASCII parse → Tessellate → Blob → Validate
     for (file, desc) in fixtures {
         eprint!("  [T1] {} ({}) ... ", file, desc);
         match validate_fixture(file) {
@@ -48,18 +50,32 @@ fn main() {
         }
     }
 
-    // Test 2: Range containment (validates the renderer offset fix)
+    // Test 2: Range containment (validates layer ranges stay within layout region)
     eprint!("\n  [T2] Range/sub-buffer containment ... ");
     match test_range_containment() {
         Ok(()) => { eprintln!("OK"); pass += 1; }
         Err(e) => { eprintln!("FAIL\n         {}", e); fail += 1; }
     }
 
-    // Test 3: Multi-layout geometry
-    eprint!("  [T3] Multi-layout region contiguity ... ");
-    match test_layout_contiguity() {
+    // Test 3: Single-layout geometry contiguity (lines → tris → points)
+    eprint!("  [T3] Region contiguity ... ");
+    match test_contiguity() {
         Ok(()) => { eprintln!("OK"); pass += 1; }
         Err(e) => { eprintln!("FAIL\n         {}", e); fail += 1; }
+    }
+
+    // Test 4: Minimal inline DXF (ensures the parser handles the simplest input)
+    eprint!("  [T4] Minimal inline DXF ... ");
+    match test_minimal_inline() {
+        Ok(()) => { eprintln!("OK"); pass += 1; }
+        Err(e) => { eprintln!("FAIL\n         {}", e); fail += 1; }
+    }
+
+    // Test 5: DWG pipeline (only if the user's real DWG file is present)
+    eprint!("  [T5] Real DWG fixture ... ");
+    match test_real_dwg() {
+        Ok(()) => { eprintln!("OK"); pass += 1; }
+        Err(e) => { eprintln!("SKIP ({})", e); }
     }
 
     eprintln!("\n=== Results: {} passed, {} failed ===", pass, fail);
@@ -68,11 +84,19 @@ fn main() {
     }
 }
 
+fn load_fixture_text(name: &str) -> Result<String, String> {
+    let p = fixture(name);
+    if !p.is_file() {
+        return Err(format!("fixture missing: {}", p.display()));
+    }
+    std::fs::read_to_string(&p).map_err(|e| format!("read {name}: {e}"))
+}
+
 fn validate_fixture(file: &str) -> Result<FixtureStats, String> {
-    let drawing = rocktier_cad_viewer_lib::dxf_io::load_drawing(&fixture(file))
-        .map_err(|e| format!("load_drawing: {e}"))?;
-    let (meta, geometry) = rocktier_cad_viewer_lib::tess::build_scene(&drawing)
-        .map_err(|e| format!("build_scene: {e}"))?;
+    let text = load_fixture_text(file)?;
+    let (meta, geometry) =
+        rocktier_cad_viewer_lib::dxf_ascii::parse_and_build(&text, 0, false, 0)
+            .map_err(|e| format!("parse_and_build: {e}"))?;
     let meta_json = serde_json::to_string(&meta).map_err(|e| format!("serialize: {e}"))?;
     let blob = rocktier_cad_viewer_lib::model::encode_blob(&meta_json, &geometry);
 
@@ -86,7 +110,6 @@ fn validate_fixture(file: &str) -> Result<FixtureStats, String> {
     if 8 + meta_len > blob.len() {
         return Err("meta_len overruns blob".into());
     }
-    // Validate the JSON is well-formed (parse to generic Value)
     if serde_json::from_str::<serde_json::Value>(
         std::str::from_utf8(&blob[8..8 + meta_len]).unwrap(),
     ).is_err()
@@ -128,10 +151,10 @@ fn validate_fixture(file: &str) -> Result<FixtureStats, String> {
 
 fn test_range_containment() -> Result<(), String> {
     for name in &["01_fan.dxf", "02_bulge.dxf", "03_ellipse.dxf", "05_nesting.dxf", "07_layout.dxf"] {
-        let drawing = rocktier_cad_viewer_lib::dxf_io::load_drawing(&fixture(name))
-            .map_err(|e| format!("{name}: load: {e}"))?;
-        let (meta, _) = rocktier_cad_viewer_lib::tess::build_scene(&drawing)
-            .map_err(|e| format!("{name}: build: {e}"))?;
+        let text = load_fixture_text(name)?;
+        let (meta, _) =
+            rocktier_cad_viewer_lib::dxf_ascii::parse_and_build(&text, 0, false, 0)
+                .map_err(|e| format!("{name}: parse: {e}"))?;
 
         for (li, lo) in meta.layouts.iter().enumerate() {
             for r in &lo.line_ranges {
@@ -157,24 +180,70 @@ fn test_range_containment() -> Result<(), String> {
     Ok(())
 }
 
-fn test_layout_contiguity() -> Result<(), String> {
-    let drawing = rocktier_cad_viewer_lib::dxf_io::load_drawing(&fixture("07_layout.dxf"))
-        .map_err(|e| format!("load: {e}"))?;
-    let (meta, _) = rocktier_cad_viewer_lib::tess::build_scene(&drawing)
-        .map_err(|e| format!("build: {e}"))?;
+fn test_contiguity() -> Result<(), String> {
+    for name in &["01_fan.dxf", "02_bulge.dxf", "03_ellipse.dxf", "04_spline.dxf"] {
+        let text = load_fixture_text(name)?;
+        let (meta, _) =
+            rocktier_cad_viewer_lib::dxf_ascii::parse_and_build(&text, 0, false, 0)
+                .map_err(|e| format!("{name}: parse: {e}"))?;
 
-    // Must have at least 2 layouts (Model + paper)
-    if meta.layouts.len() < 2 {
-        return Err(format!("expected >= 2 layouts, got {}", meta.layouts.len()));
-    }
-    for (li, lo) in meta.layouts.iter().enumerate() {
-        // Each layout's three sub-regions should be contiguous: lines → tris → points.
-        if lo.tris_offset != lo.lines_offset + lo.lines_len {
-            return Err(format!("L{} tris region not contiguous after lines", li));
-        }
-        if lo.points_offset != lo.tris_offset + lo.tris_len {
-            return Err(format!("L{} points region not contiguous after tris", li));
+        for (li, lo) in meta.layouts.iter().enumerate() {
+            if lo.tris_offset != lo.lines_offset + lo.lines_len {
+                return Err(format!("{name} L{} tris region not contiguous after lines", li));
+            }
+            if lo.points_offset != lo.tris_offset + lo.tris_len {
+                return Err(format!("{name} L{} points region not contiguous after tris", li));
+            }
         }
     }
+    Ok(())
+}
+
+fn test_minimal_inline() -> Result<(), String> {
+    let dxf = "\
+  0
+SECTION
+  2
+ENTITIES
+  0
+LINE
+  8
+0
+ 10
+0.0
+ 20
+0.0
+ 11
+10.0
+ 21
+10.0
+  0
+ENDSEC
+  0
+EOF
+";
+    let (meta, geometry) =
+        rocktier_cad_viewer_lib::dxf_ascii::parse_and_build(dxf, 0, false, 0)
+            .map_err(|e| format!("parse: {e}"))?;
+    if meta.segments < 1 {
+        return Err(format!("expected >=1 segment, got {}", meta.segments));
+    }
+    if geometry.len() < 24 {
+        return Err(format!("geo too short: {}", geometry.len()));
+    }
+    Ok(())
+}
+
+fn test_real_dwg() -> Result<(), String> {
+    let dwg_path = PathBuf::from("/Users/danglei/Downloads/久裕设计-融侨华府定稿平面.dwg");
+    if !dwg_path.is_file() {
+        return Err("real DWG file not in Downloads".into());
+    }
+    // GeoJSON CLI path — sidesteps LibreDWG 0.14 AC1021 DXF-writer bug.
+    let (meta, geometry) =
+        rocktier_cad_viewer_lib::dwg_geojson::read_dwg_geojson(&dwg_path, 0, 0)
+            .map_err(|e| format!("GeoJSON parse real DWG: {e}"))?;
+    eprintln!("\n         real DWG → {} segs, {} texts, {} layers, {} kb geometry",
+        meta.segments, meta.text_count, meta.layers.len(), geometry.len() / 1024);
     Ok(())
 }

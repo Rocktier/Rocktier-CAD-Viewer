@@ -17,6 +17,9 @@ dist-ssr
 src-tauri/target
 src-tauri/Cargo.lock
 
+# Temp files produced by dwg2dxf conversion (never commit)
+rcv_dwg_*.dxf
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

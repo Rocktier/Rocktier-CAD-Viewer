@@ -1,9 +1,9 @@
 pub mod aci;
 pub mod blob;
 pub mod commands;
-pub mod dxf_io;
+pub mod dxf_ascii;
+pub mod dwg_geojson;
 pub mod model;
-pub mod tess;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

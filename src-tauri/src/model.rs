@@ -54,12 +54,9 @@ pub struct LayoutMeta {
     pub max_y: f64,
     pub lines_offset: u32,
     pub lines_len: u32,
-    pub tris_offset: u32,
-    pub tris_len: u32,
     pub points_offset: u32,
     pub points_len: u32,
     pub line_ranges: Vec<RangeSpec>,
-    pub tri_ranges: Vec<RangeSpec>,
     pub point_ranges: Vec<RangeSpec>,
 }
 
@@ -71,12 +68,10 @@ pub struct SceneMeta {
     pub segments: u64,
     pub text_count: u64,
     pub parse_ms: u64,
-    pub tess_ms: u64,
     /// Time spent in dwg2dxf conversion (0 for native DXF).
     pub convert_ms: u64,
     /// True when the input was a DWG that was converted on-the-fly.
     pub was_dwg: bool,
-    pub truncated: bool,
     /// Number of entities that were not understood / cannot be tessellated.
     pub skipped: u64,
 }
@@ -93,7 +88,3 @@ pub fn encode_blob(meta_json: &str, geometry: &[u8]) -> Vec<u8> {
     out.extend_from_slice(geometry);
     out
 }
-
-/// Vertex stride in bytes: f32 x, f32 y, u8 r, g, b, a.
-#[allow(dead_code)]
-pub const VERTEX_STRIDE: usize = 12;

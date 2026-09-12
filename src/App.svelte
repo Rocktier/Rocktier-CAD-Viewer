@@ -144,18 +144,15 @@
       <span class="status-item">X {formatCoord(app.coords.x)}</span>
       <span class="status-item">Y {formatCoord(app.coords.y)}</span>
       <span class="grow"></span>
-      {#if app.scene.meta.truncated}
-        <span class="status-item status-warn">⚠ {t("truncated")}</span>
-      {/if}
       {#if app.scene.meta.skipped > 0}
-        <span class="status-item status-warn" title={t("skippedHint")}>
-          ⚠ {t("skipped")} {formatCount(app.scene.meta.skipped)}
+        <span class="status-item status-muted" title={t("skippedHint")}>
+          {t("skipped")} {formatCount(app.scene.meta.skipped)}
         </span>
       {/if}
       <span class="status-item">{t("zoom")} {app.zoomPct}%</span>
       <span class="status-item">{t("segs")} {formatCount(app.scene.meta.segments)}</span>
       <span class="status-item">{t("texts")} {formatCount(app.scene.meta.text_count)}</span>
-      <span class="status-item">{formatDuration(app.scene.meta.parse_ms + app.scene.meta.tess_ms + app.scene.meta.convert_ms)}{app.scene.meta.was_dwg ? " (dwg)" : ""}</span>
+      <span class="status-item">{formatDuration(app.scene.meta.parse_ms + app.scene.meta.convert_ms)}{app.scene.meta.was_dwg ? " (dwg)" : ""}</span>
     {:else}
       <span class="status-item"><i class="status-red"></i>{t("offline")}</span>
       <span class="grow"></span>

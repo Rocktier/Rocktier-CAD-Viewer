@@ -62,7 +62,6 @@ pub fn run() {
         .manage(OpenedFiles::default())
         .invoke_handler(tauri::generate_handler![
             commands::open_drawing,
-            commands::app_info,
             commands::open_url,
             opened_files
         ])

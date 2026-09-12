@@ -28,7 +28,6 @@ const STRIDE = 12; // f32 x, f32 y, u8 r,g,b,a
 
 interface LayoutBuffers {
   lines: WebGLBuffer | null;
-  tris: WebGLBuffer | null;
   points: WebGLBuffer | null;
 }
 
@@ -120,7 +119,6 @@ export class Renderer {
   dispose() {
     for (const b of this.buffers.values()) {
       this.gl?.deleteBuffer(b.lines);
-      this.gl?.deleteBuffer(b.tris);
       this.gl?.deleteBuffer(b.points);
     }
     this.buffers.clear();
@@ -159,7 +157,6 @@ export class Renderer {
     // leaving the renderer permanently unable to draw (blank canvas).
     for (const b of this.buffers.values()) {
       gl.deleteBuffer(b.lines);
-      gl.deleteBuffer(b.tris);
       gl.deleteBuffer(b.points);
     }
     this.buffers.clear();
@@ -169,7 +166,6 @@ export class Renderer {
     scene.meta.layouts.forEach((layout, i) => {
       const mk = (): LayoutBuffers => ({
         lines: gl.createBuffer(),
-        tris: gl.createBuffer(),
         points: gl.createBuffer(),
       });
       const bufs = mk();
@@ -183,7 +179,6 @@ export class Renderer {
         );
       };
       upload(bufs.lines, layout.lines_offset, layout.lines_len);
-      upload(bufs.tris, layout.tris_offset, layout.tris_len);
       upload(bufs.points, layout.points_offset, layout.points_len);
       this.buffers.set(i, bufs);
     });
@@ -231,17 +226,9 @@ export class Renderer {
       gl.drawArrays(mode, Math.floor(r.offset / STRIDE), count);
     };
 
-    // Filled solids first, then hairlines, then points.
+    // Hairlines first, then points.
     // Buffer data is already the layout's sub-region, so the drawArrays
     // offset is relative to that sub-buffer — do NOT add layout.*_offset.
-    if (layout.tris_len > 0) {
-      gl.uniform1f(this.uPoint, 1);
-      bind(bufs.tris);
-      for (const r of layout.tri_ranges) {
-        if (hidden.has(r.layer)) continue;
-        drawRange(gl.TRIANGLES, r, 3);
-      }
-    }
     if (layout.lines_len > 0) {
       gl.uniform1f(this.uPoint, 1);
       bind(bufs.lines);

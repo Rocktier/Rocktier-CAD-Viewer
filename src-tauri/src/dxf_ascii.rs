@@ -39,7 +39,6 @@ struct LayerRec {
     off: bool,
     lines: Vec<u8>,
     points: Vec<u8>,
-    tris: Vec<u8>,
 }
 
 /// A POLYLINE accumulates its VERTEX children until SEQEND arrives.
@@ -126,7 +125,7 @@ impl State {
         self.layers.push(LayerRec {
             name: name.to_string(),
             r, g, b, auto: aci == 7, off,
-            lines: Vec::new(), points: Vec::new(), tris: Vec::new(),
+            lines: Vec::new(), points: Vec::new(),
         });
         i
     }
@@ -173,19 +172,6 @@ impl State {
         let li = self.current_layer;
         let (r, g, b, a) = self.cur_rgba();
         append_point(&mut self.layers[li].points, x, y, r, g, b, a);
-    }
-
-    #[allow(dead_code)]
-    fn push_tri(&mut self, p1: (f64, f64), p2: (f64, f64), p3: (f64, f64)) {
-        let p1 = self.apply_xf(p1.0, p1.1);
-        let p2 = self.apply_xf(p2.0, p2.1);
-        let p3 = self.apply_xf(p3.0, p3.1);
-        self.set_extents(p1.0, p1.1);
-        self.set_extents(p2.0, p2.1);
-        self.set_extents(p3.0, p3.1);
-        let li = self.current_layer;
-        let (r, g, b, a) = self.cur_rgba();
-        append_tri(&mut self.layers[li].tris, p1, p2, p3, r, g, b, a);
     }
 
     fn parse(&mut self, input: &str) {
@@ -792,10 +778,8 @@ impl State {
             segments: segments_total,
             text_count,
             parse_ms: parse_time_ms,
-            tess_ms: 0,
             convert_ms,
             was_dwg,
-            truncated: false,
             skipped: self.skipped,
         };
         Ok((meta, geometry))
@@ -814,19 +798,6 @@ impl State {
             geometry.extend_from_slice(&l.lines);
         }
         let lines_len = (geometry.len() - lines_start) as u32;
-
-        let tris_start = geometry.len();
-        let mut tri_ranges: Vec<RangeSpec> = Vec::new();
-        for (li, l) in ls.layers.iter().enumerate() {
-            if l.tris.is_empty() { continue; }
-            tri_ranges.push(RangeSpec {
-                layer: li as u32,
-                offset: (geometry.len() - tris_start) as u32,
-                len: l.tris.len() as u32,
-            });
-            geometry.extend_from_slice(&l.tris);
-        }
-        let tris_len = (geometry.len() - tris_start) as u32;
 
         let points_start = geometry.len();
         let mut point_ranges: Vec<RangeSpec> = Vec::new();
@@ -849,12 +820,9 @@ impl State {
             max_y: ls.max_y,
             lines_offset: lines_start as u32,
             lines_len,
-            tris_offset: tris_start as u32,
-            tris_len,
             points_offset: points_start as u32,
             points_len,
             line_ranges,
-            tri_ranges,
             point_ranges,
         }
     }
@@ -1136,12 +1104,6 @@ pub(crate) fn append_point(out: &mut Vec<u8>, x: f64, y: f64, r: u8, g: u8, b: u
     out.extend_from_slice(&(x as f32).to_le_bytes());
     out.extend_from_slice(&(y as f32).to_le_bytes());
     out.push(r); out.push(g); out.push(b); out.push(a);
-}
-
-pub(crate) fn append_tri(out: &mut Vec<u8>, p1: (f64, f64), p2: (f64, f64), p3: (f64, f64), r: u8, g: u8, b: u8, a: u8) {
-    append_point(out, p1.0, p1.1, r, g, b, a);
-    append_point(out, p2.0, p2.1, r, g, b, a);
-    append_point(out, p3.0, p3.1, r, g, b, a);
 }
 
 // ------------------------------------------------------------------------ tests

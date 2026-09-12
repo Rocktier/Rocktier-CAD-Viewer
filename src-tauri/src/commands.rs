@@ -1,29 +1,10 @@
 use std::path::Path;
 
-use serde::Serialize;
 use tauri::ipc::Response;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::drawing;
 use crate::model::encode_blob;
-
-#[derive(Serialize)]
-pub struct AppInfo {
-    pub name: &'static str,
-    pub version: &'static str,
-    pub brand: &'static str,
-    pub offline: bool,
-}
-
-#[tauri::command]
-pub fn app_info() -> AppInfo {
-    AppInfo {
-        name: "Rocktier CAD Viewer",
-        version: env!("CARGO_PKG_VERSION"),
-        brand: "Create with grit.",
-        offline: true,
-    }
-}
 
 #[tauri::command]
 pub async fn open_drawing(path: String) -> Result<Response, String> {

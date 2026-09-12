@@ -21,12 +21,9 @@ export interface LayoutMeta {
   max_y: number;
   lines_offset: number;
   lines_len: number;
-  tris_offset: number;
-  tris_len: number;
   points_offset: number;
   points_len: number;
   line_ranges: RangeSpec[];
-  tri_ranges: RangeSpec[];
   point_ranges: RangeSpec[];
 }
 
@@ -53,12 +50,10 @@ export interface SceneMeta {
   segments: number;
   text_count: number;
   parse_ms: number;
-  tess_ms: number;
   /** Time spent in dwg2dxf conversion (0 for native DXF). */
   convert_ms: number;
   /** True when the input was a DWG that was converted on-the-fly. */
   was_dwg: boolean;
-  truncated: boolean;
   /** Entities recognised but not renderable (HATCH, unresolved INSERT, …). */
   skipped: number;
 }
@@ -89,9 +84,4 @@ export function parseBlob(buf: ArrayBuffer): Scene {
   if (8 + metaLen > buf.byteLength) throw new Error("数据损坏 / corrupted data");
   const meta = JSON.parse(decoder.decode(new Uint8Array(buf, 8, metaLen))) as SceneMeta;
   return new Scene(meta, buf, 8 + metaLen);
-}
-
-/** Model space display name. */
-export function layoutLabel(name: string): string {
-  return name === "Model" ? "Model" : name;
 }

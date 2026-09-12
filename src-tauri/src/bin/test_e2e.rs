@@ -60,7 +60,7 @@ fn main() {
         Err(e) => { eprintln!("FAIL\n         {}", e); fail += 1; }
     }
 
-    // Test 3: Single-layout geometry contiguity (lines → tris → points)
+    // Test 3: Single-layout geometry contiguity (lines → points)
     eprint!("  [T3] Region contiguity ... ");
     match test_contiguity() {
         Ok(()) => { eprintln!("OK"); pass += 1; }
@@ -156,18 +156,14 @@ fn validate_fixture(file: &str, min_segs: u64) -> Result<FixtureStats, String> {
         if layout.lines_len % 12 != 0 {
             return Err(format!("L{} lines_len {} unaligned", li, layout.lines_len));
         }
-        if layout.tris_len % 12 != 0 {
-            return Err(format!("L{} tris_len {} unaligned", li, layout.tris_len));
-        }
         if layout.points_len % 12 != 0 {
             return Err(format!("L{} points_len {} unaligned", li, layout.points_len));
         }
         let le = layout.lines_offset as u32 + layout.lines_len as u32;
-        let te = layout.tris_offset as u32 + layout.tris_len as u32;
         let pe = layout.points_offset as u32 + layout.points_len as u32;
-        if le as usize > geo_len || te as usize > geo_len || pe as usize > geo_len {
-            return Err(format!("L{} region overruns geo (le={}, te={}, pe={}, geo={})",
-                li, le, te, pe, geo_len));
+        if le as usize > geo_len || pe as usize > geo_len {
+            return Err(format!("L{} region overruns geo (le={}, pe={}, geo={})",
+                li, le, pe, geo_len));
         }
     }
 
@@ -195,11 +191,6 @@ fn test_range_containment() -> Result<(), String> {
                     return Err(format!("{name} L{} line range len {} unaligned", li, r.len));
                 }
             }
-            for r in &lo.tri_ranges {
-                if r.offset + r.len > lo.tris_len {
-                    return Err(format!("{name} L{} tri range overflow: {} > {}", li, r.offset + r.len, lo.tris_len));
-                }
-            }
             for r in &lo.point_ranges {
                 if r.offset + r.len > lo.points_len {
                     return Err(format!("{name} L{} point range overflow: {} > {}", li, r.offset + r.len, lo.points_len));
@@ -218,11 +209,8 @@ fn test_contiguity() -> Result<(), String> {
                 .map_err(|e| format!("{name}: parse: {e}"))?;
 
         for (li, lo) in meta.layouts.iter().enumerate() {
-            if lo.tris_offset != lo.lines_offset + lo.lines_len {
-                return Err(format!("{name} L{} tris region not contiguous after lines", li));
-            }
-            if lo.points_offset != lo.tris_offset + lo.tris_len {
-                return Err(format!("{name} L{} points region not contiguous after tris", li));
+            if lo.points_offset != lo.lines_offset + lo.lines_len {
+                return Err(format!("{name} L{} points region not contiguous after lines", li));
             }
         }
     }

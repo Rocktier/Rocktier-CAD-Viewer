@@ -10,16 +10,6 @@
 </script>
 
 <div class="stage">
-  {#if app.scene && app.scene.meta.layouts.length > 1}
-    <div class="tabs">
-      {#each app.scene.meta.layouts as lay, i (i)}
-        <button class="tab" class:active={i === app.activeLayout} onclick={() => (app.activeLayout = i)}>
-          {lay.name === "Model" ? (app.lang === "zh" ? "模型" : "Model") : lay.name}
-        </button>
-      {/each}
-    </div>
-  {/if}
-
   <div class="canvas-wrap" class:measuring={app.tool === "measure"}>
     <Viewer />
 

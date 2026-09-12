@@ -241,43 +241,6 @@ body {
   background: var(--bg2);
 }
 
-.tabs {
-  flex: none;
-  display: flex;
-  gap: 6px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.tab {
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--text3);
-  background: var(--card);
-  border: 1px solid var(--border);
-  padding: 5px 14px;
-  border-radius: 100px;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-.tab:hover {
-  color: var(--text);
-  border-color: var(--border-hover);
-}
-.tab.active {
-  color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
 .canvas-wrap {
   flex: 1;
   position: relative;
@@ -680,8 +643,8 @@ body {
   flex: none;
 }
 
-.status-warn {
-  color: var(--red);
+.status-muted {
+  color: var(--text3);
 }
 
 /* ---------------- measure ---------------- */

@@ -77,6 +77,8 @@ pub struct SceneMeta {
     /// True when the input was a DWG that was converted on-the-fly.
     pub was_dwg: bool,
     pub truncated: bool,
+    /// Number of entities that were not understood / cannot be tessellated.
+    pub skipped: u64,
 }
 
 /// Scene blob layout: [magic "RCV1"][u32 meta_len][meta JSON][geometry region].

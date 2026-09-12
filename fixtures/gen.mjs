@@ -78,7 +78,7 @@ const aci = {
 function line(x1, y1, x2, y2, layer = "0", colorStr = "") {
   return ent("LINE", [entLayer(layer), colorStr,
     gc(10, x1), gc(20, y1), gc(30, "0.0"),
-    gc(11, x2), gc(22, y2), gc(32, "0.0"),
+    gc(11, x2), gc(21, y2), gc(31, "0.0"),
   ]);
 }
 
@@ -155,9 +155,9 @@ function insert(blockName, x, y, layer = "0", colorStr = "") {
 function solid(x1, y1, x2, y2, x3, y3, x4, y4, layer = "0", colorStr = "") {
   return ent("SOLID", [entLayer(layer), colorStr,
     gc(10, x1), gc(20, y1), gc(30, "0.0"),
-    gc(11, x2), gc(22, y2), gc(32, "0.0"),
-    gc(12, x4), gc(24, y4), gc(32, "0.0"),
-    gc(13, x3), gc(23, y3), gc(32, "0.0"),
+    gc(11, x2), gc(21, y2), gc(31, "0.0"),
+    gc(12, x4), gc(22, y4), gc(32, "0.0"),
+    gc(13, x3), gc(23, y3), gc(33, "0.0"),
   ]);
 }
 
@@ -243,15 +243,15 @@ const winEntsLWP = ent("LWPOLYLINE", [entLayer("0"), gc(90, "4"), gc(70, "1"),
   gc(10, -10), gc(20, -10), gc(10, 10), gc(20, -10),
   gc(10, 10), gc(20, 10), gc(10, -10), gc(20, 10),
 ]);
-const winEntsLINE1 = ent("LINE", [entLayer("0"), gc(10, -10), gc(20, 0), gc(30, "0.0"), gc(11, 10), gc(22, 0), gc(32, "0.0")]);
-const winEntsLINE2 = ent("LINE", [entLayer("0"), gc(10, 0), gc(20, -10), gc(30, "0.0"), gc(11, 0), gc(22, 10), gc(32, "0.0")]);
+const winEntsLINE1 = ent("LINE", [entLayer("0"), gc(10, -10), gc(20, 0), gc(30, "0.0"), gc(11, 10), gc(21, 0), gc(31, "0.0")]);
+const winEntsLINE2 = ent("LINE", [entLayer("0"), gc(10, 0), gc(20, -10), gc(30, "0.0"), gc(11, 0), gc(21, 10), gc(31, "0.0")]);
 
 const f5 = wrap(
   header([["$ACADVER", "AC1027"]]),
   section("TABLES", layerTable([["0", 7]])),
   section("BLOCKS",
     block("WIN", "0", winEntsLWP + winEntsLINE1 + winEntsLINE2)
-    + block("DOOR", "0", ent("LINE", [entLayer("0"), gc(10, -20), gc(20, 0), gc(30, "0.0"), gc(11, 20), gc(22, 0), gc(32, "0.0")]))
+    + block("DOOR", "0", ent("LINE", [entLayer("0"), gc(10, -20), gc(20, 0), gc(30, "0.0"), gc(11, 20), gc(21, 0), gc(31, "0.0")]))
     + block("ROOM", "0",
         ent("LWPOLYLINE", [entLayer("0"), gc(90, "4"), gc(70, "1"),
           gc(10, -100), gc(20, -60), gc(10, 100), gc(20, -60),
@@ -293,7 +293,7 @@ const f7 = wrap(
       ])
       + ent("LINE", [entLayer("TITLE"),
         gc(10, -80), gc(20, 60), gc(30, "0.0"),
-        gc(11, 80), gc(22, 60), gc(32, "0.0"),
+        gc(11, 80), gc(21, 60), gc(31, "0.0"),
       ])
     )
   ),

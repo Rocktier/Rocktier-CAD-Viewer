@@ -2,9 +2,11 @@
   import { onMount, onDestroy } from "svelte";
   import { app } from "../lib/state.svelte";
   import { Renderer } from "../lib/renderer";
-  import { Camera } from "../lib/camera";
-  import { drawTexts, drawMeasure } from "../lib/text";
+  import { Camera, checkProjection } from "../lib/camera";
+  import { drawTexts, drawMeasure, syncCanvasSize } from "../lib/text";
   import { formatDist } from "../lib/format";
+  import { t } from "../lib/i18n.svelte";
+  import { buildSnapIndex, nearestSnap, SNAP_PX, type SnapHit, type SnapIndex } from "../lib/snap";
 
   let wrap: HTMLDivElement;
   let glCanvas: HTMLCanvasElement;
@@ -14,6 +16,9 @@
   const renderer = new Renderer();
   let glOk = $state(true);
   let glError = $state("");
+  /** Set while the GPU context is gone; cleared when the renderer rebuilds. */
+  let ctxLost = $state(false);
+  const glUsable = $derived(glOk && !ctxLost);
 
   let raf = 0;
   let ro: ResizeObserver | null = null;
@@ -23,6 +28,11 @@
   let dragging = false;
   let panning = $state(false);
   let last: { sx: number; sy: number } | null = null;
+  let snapIndex: SnapIndex = buildSnapIndex(null, 0, new Set());
+  let snapHit: SnapHit | null = null;
+  /** Where the measure drag started on screen — tells a drag from a click. */
+  let dragOrigin: { sx: number; sy: number } | null = null;
+  let dragMoved = false;
 
   const dpr = () => Math.min(window.devicePixelRatio || 1, 2.5);
 
@@ -43,16 +53,20 @@
       }
     }
     if (!app.scene) {
-      // Clear canvases when no drawing is open.
+      // Clear both canvases when no drawing is open — otherwise the previous
+      // drawing stays visible behind the empty state.
+      if (glOk) renderer.clear(glCanvas, themeColors().bg, dpr());
       const ctx = uiCanvas?.getContext("2d");
       if (ctx) {
+        syncCanvasSize(uiCanvas, dpr());
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, uiCanvas.width, uiCanvas.height);
       }
       return;
     }
     const th = themeColors();
-    if (glOk) {
+    if (glUsable) {
+      checkProjection(cam);
       renderer.draw(glCanvas, cam, app.activeLayout, {
         autoColor: th.auto,
         background: th.bg,
@@ -68,15 +82,22 @@
         dpr: dpr(),
       });
       if (app.tool === "measure") {
-        drawMeasure(
-          ctx, uiCanvas, cam,
+        drawMeasure(ctx, cam, {
           pending,
-          app.measureResult,
-          cursorWorld,
-          dpr(),
-          th.red,
-          app.measureResult ? formatDist(app.measureResult.dist) : null,
-        );
+          result: app.measureResult,
+          cursor: cursorWorld,
+          snap: snapHit,
+          dpr: dpr(),
+          red: th.red,
+          label: app.measureResult
+            ? formatDist(app.measureResult.dist)
+            : pending && cursorWorld
+              ? formatDist(Math.hypot(cursorWorld.x - pending.x, cursorWorld.y - pending.y))
+              : null,
+          snapLabel: snapHit
+            ? t(snapHit.kind === "midpoint" ? "snapMidpoint" : "snapEndpoint")
+            : null,
+        });
       }
     }
   }
@@ -128,40 +149,83 @@
   $effect(() => {
     void app.tool;
     pending = null;
+    snapHit = null;
+    dragOrigin = null;
     if (app.tool !== "measure") {
       app.measureResult = null;
     }
     requestDraw();
   });
 
-  function updateCoords(e: MouseEvent) {
-    const w = cam.worldFromScreen(e.offsetX, e.offsetY);
-    app.coords = { x: w.x, y: w.y };
-    cursorWorld = w;
+  // Snap candidates follow the scene, the active layout and layer visibility.
+  $effect(() => {
+    void app.scene;
+    void app.activeLayout;
+    void app.hidden.size;
+    snapIndex = buildSnapIndex(app.scene, app.activeLayout, app.hidden);
+  });
+
+  /** Pointer position in CSS pixels relative to the canvas, whatever the target. */
+  function canvasPoint(e: MouseEvent) {
+    const r = glCanvas.getBoundingClientRect();
+    return { sx: e.clientX - r.left, sy: e.clientY - r.top };
+  }
+
+  /** Cursor in world units, snapped to nearby geometry unless Shift bypasses it. */
+  function cursorAt(e: MouseEvent) {
+    const p = canvasPoint(e);
+    const w = cam.worldFromScreen(p.sx, p.sy);
+    snapHit =
+      app.tool === "measure" && !e.shiftKey
+        ? nearestSnap(snapIndex, w.x, w.y, SNAP_PX / cam.scale)
+        : null;
+    cursorWorld = snapHit ?? w;
+    app.coords = cursorWorld;
+    return { p, w: cursorWorld };
+  }
+
+  function commitMeasure(end: { x: number; y: number }) {
+    if (!pending) return;
+    app.measureResult = {
+      x1: pending.x,
+      y1: pending.y,
+      x2: end.x,
+      y2: end.y,
+      dist: Math.hypot(end.x - pending.x, end.y - pending.y),
+    };
+    pending = null;
   }
 
   function onWheel(e: WheelEvent) {
     e.preventDefault();
+    // Normalise deltaMode: Firefox reports lines (≈3) and some Windows drivers
+    // report pages (≈100), both of which would make one notch nearly a no-op
+    // (or a teleport) against a factor tuned for pixels.
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1;
+    const dy = e.deltaY * unit;
     // Sensitivity raised so a single wheel notch (deltaY ≈ ±100) moves ~30%.
     // Trackpad micro-events (deltaY ≈ ±2-5) still feel responsive.
-    let factor = Math.exp(-e.deltaY * 0.0032);
-    if (e.deltaY === 0) factor = e.deltaX < 0 ? 1.15 : 0.85;
+    let factor = dy === 0 ? (e.deltaX < 0 ? 1.15 : 0.85) : Math.exp(-dy * 0.0032);
     factor = Math.min(Math.max(factor, 0.25), 4);
-    cam.zoomAt(e.offsetX, e.offsetY, factor);
-    app.zoomPct = Math.round((cam.scale / cam.fitScale) * 100);
+    const p = canvasPoint(e);
+    cam.zoomAt(p.sx, p.sy, factor);
+    app.zoomPct = Math.min(99999, Math.max(1, Math.round((cam.scale / cam.fitScale) * 100)));
     requestDraw();
   }
 
   function onDown(e: MouseEvent) {
     if (app.tool === "measure" && e.button === 0) {
-      const w = cam.worldFromScreen(e.offsetX, e.offsetY);
+      const { p, w } = cursorAt(e);
       if (!pending) {
+        // First point: remember where the press started so a drag can complete
+        // the measurement on release, while a plain click keeps it pending for
+        // the click-click workflow.
         pending = w;
         app.measureResult = null;
+        dragOrigin = p;
+        dragMoved = false;
       } else {
-        const dist = Math.hypot(w.x - pending.x, w.y - pending.y);
-        app.measureResult = { x1: pending.x, y1: pending.y, x2: w.x, y2: w.y, dist };
-        pending = null;
+        commitMeasure(w);
       }
       requestDraw();
       return;
@@ -174,23 +238,35 @@
   }
 
   function onMove(e: MouseEvent) {
-    updateCoords(e);
+    const { p } = cursorAt(e);
+    if (dragOrigin && Math.hypot(p.sx - dragOrigin.sx, p.sy - dragOrigin.sy) > 3) {
+      dragMoved = true;
+    }
     if (dragging && last) {
       cam.panByPixels(e.clientX - last.sx, e.clientY - last.sy);
       last = { sx: e.clientX, sy: e.clientY };
       requestDraw();
-    } else if (app.tool === "measure" && pending) {
+    } else if (app.tool === "measure") {
       requestDraw();
     }
   }
 
-  function onUp() {
+  function onUp(e: MouseEvent) {
+    const origin = dragOrigin;
+    dragOrigin = null;
+    if (origin && dragMoved && pending) {
+      // Drag-to-measure: releasing with the pointer moved commits the distance.
+      commitMeasure(cursorAt(e).w);
+      requestDraw();
+    }
     dragging = false;
     panning = false;
   }
 
   function onLeave() {
     cursorWorld = null;
+    snapHit = null;
+    app.coords = { x: 0, y: 0 };
   }
 
   function onContext(e: MouseEvent) {
@@ -198,8 +274,18 @@
   }
 
   function onKey(e: KeyboardEvent) {
+    // Don't hijack typing (the layer search box) or browser shortcuts.
+    if (e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+    const el = e.target as HTMLElement | null;
+    if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+
     if (e.key === "Escape") {
+      if (app.aboutOpen) {
+        app.aboutOpen = false;
+        return;
+      }
       pending = null;
+      dragOrigin = null;
       app.measureResult = null;
       app.tool = "pan";
       requestDraw();
@@ -211,6 +297,22 @@
     }
   }
 
+  let dprMq: MediaQueryList | null = null;
+
+  /** Canvas backing stores are only re-sized inside `draw()`, so dragging the
+   *  window to a display with a different scale needs an explicit nudge. */
+  function watchDpr() {
+    dprMq?.removeEventListener("change", onDprChange);
+    dprMq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    dprMq.addEventListener("change", onDprChange);
+  }
+
+  function onDprChange() {
+    cam.setViewport(wrap.clientWidth, wrap.clientHeight);
+    requestDraw();
+    watchDpr();
+  }
+
   onMount(() => {
     try {
       glOk = renderer.init(glCanvas);
@@ -219,16 +321,22 @@
       glOk = false;
       glError = String(err);
     }
+    renderer.onContextChange = () => {
+      ctxLost = renderer.contextLost;
+      requestDraw();
+    };
     cam.setViewport(wrap.clientWidth, wrap.clientHeight);
     ro = new ResizeObserver(() => {
       cam.setViewport(wrap.clientWidth, wrap.clientHeight);
       requestDraw();
     });
     ro.observe(wrap);
+    watchDpr();
   });
 
   onDestroy(() => {
     ro?.disconnect();
+    dprMq?.removeEventListener("change", onDprChange);
     if (raf) cancelAnimationFrame(raf);
     renderer.dispose();
   });
@@ -248,11 +356,11 @@
     oncontextmenu={onContext}
   ></canvas>
   <canvas bind:this={uiCanvas} style="pointer-events:none"></canvas>
-  {#if !glOk}
+  {#if !glUsable}
     <div class="overlay">
       <div class="overlay-card">
         <div class="overlay-title">WebGL</div>
-        <div class="overlay-msg">{glError || "unavailable"}</div>
+        <div class="overlay-msg">{glError || (ctxLost ? "GPU 上下文丢失，正在恢复…" : "unavailable")}</div>
       </div>
     </div>
   {/if}

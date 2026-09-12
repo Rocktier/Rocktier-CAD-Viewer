@@ -10,9 +10,9 @@
 </script>
 
 <div class="stage">
-  {#if app.scene}
+  {#if app.scene && app.scene.meta.layouts.length > 1}
     <div class="tabs">
-      {#each app.scene.meta.layouts as lay, i (lay.name + i)}
+      {#each app.scene.meta.layouts as lay, i (i)}
         <button class="tab" class:active={i === app.activeLayout} onclick={() => (app.activeLayout = i)}>
           {lay.name === "Model" ? (app.lang === "zh" ? "模型" : "Model") : lay.name}
         </button>
@@ -51,7 +51,7 @@
     {/if}
 
     {#if app.error}
-      <div class="toast">
+      <div class="toast" role="alert">
         <i></i>
         <span>{app.error}</span>
         <button class="ghost" style="width:26px;height:26px" onclick={() => (app.error = "")} aria-label={t("close")}>✕</button>

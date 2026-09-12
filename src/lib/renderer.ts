@@ -6,10 +6,12 @@ attribute vec2 a_pos;
 attribute vec4 a_col;
 uniform mat3 u_m;
 uniform vec3 u_auto;
+uniform float u_point;
 varying vec4 v_col;
 void main() {
   vec3 p = u_m * vec3(a_pos, 1.0);
   gl_Position = vec4(p.xy, 0.0, 1.0);
+  gl_PointSize = u_point;
   v_col = a_col.a < 0.5 ? vec4(u_auto, 1.0) : a_col;
 }
 `;
@@ -48,16 +50,44 @@ export class Renderer {
   private aCol = 0;
   private buffers = new Map<number, LayoutBuffers>();
   private uploadedScene: Scene | null = null;
+  private canvas: HTMLCanvasElement | null = null;
+  /** True while the GPU has dropped the context (sleep/wake, driver reset). */
+  contextLost = false;
+  /** Fired on loss and on restore so the view can redraw / show a notice. */
+  onContextChange: (() => void) | null = null;
+
+  private onLost = (e: Event) => {
+    // preventDefault is what allows the browser to hand it back.
+    e.preventDefault();
+    this.contextLost = true;
+    this.gl = null;
+    this.onContextChange?.();
+  };
+
+  private onRestored = () => {
+    const canvas = this.canvas;
+    const scene = this.uploadedScene;
+    if (!canvas) return;
+    this.contextLost = false;
+    // Everything GL-side is gone: rebuild the program and re-upload.
+    this.program = null;
+    this.buffers.clear();
+    this.uploadedScene = null;
+    if (this.init(canvas) && scene) this.uploadScene(scene);
+    this.onContextChange?.();
+  };
 
   init(canvas: HTMLCanvasElement): boolean {
     const gl = canvas.getContext("webgl", {
       antialias: true,
       alpha: false,
-      preserveDrawingBuffer: true,
       powerPreference: "high-performance",
     });
     if (!gl) return false;
     this.gl = gl;
+    this.canvas = canvas;
+    canvas.addEventListener("webglcontextlost", this.onLost);
+    canvas.addEventListener("webglcontextrestored", this.onRestored);
 
     const compile = (type: number, src: string) => {
       const sh = gl.createShader(type)!;
@@ -95,6 +125,28 @@ export class Renderer {
     }
     this.buffers.clear();
     this.uploadedScene = null;
+    if (this.canvas) {
+      this.canvas.removeEventListener("webglcontextlost", this.onLost);
+      this.canvas.removeEventListener("webglcontextrestored", this.onRestored);
+    }
+    if (this.gl && this.program) this.gl.deleteProgram(this.program);
+    this.program = null;
+  }
+
+  /** Paint the canvas with just the background (no drawing open). */
+  clear(canvas: HTMLCanvasElement, background: [number, number, number], dpr: number) {
+    const gl = this.gl;
+    if (!gl) return;
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    gl.viewport(0, 0, w, h);
+    const [br, bg, bb] = background;
+    gl.clearColor(br / 255, bg / 255, bb / 255, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
   /** Uploads every layout's geometry to the GPU (idempotent per scene). */
@@ -161,6 +213,15 @@ export class Renderer {
       gl.vertexAttribPointer(this.aCol, 4, gl.UNSIGNED_BYTE, true, STRIDE, 8);
     };
     const hidden = opts.hidden;
+    // Offsets and counts must be whole vertices: a range length that is not a
+    // multiple of the stride would make WebGL reject the call with
+    // INVALID_OPERATION and silently drop the batch.  `align` keeps triangle
+    // and line batches from ending mid-primitive.
+    const drawRange = (mode: number, r: { offset: number; len: number }, align = 1) => {
+      const count = Math.floor(r.len / STRIDE / align) * align;
+      if (count <= 0) return;
+      gl.drawArrays(mode, Math.floor(r.offset / STRIDE), count);
+    };
 
     // Filled solids first, then hairlines, then points.
     // Buffer data is already the layout's sub-region, so the drawArrays
@@ -170,7 +231,7 @@ export class Renderer {
       bind(bufs.tris);
       for (const r of layout.tri_ranges) {
         if (hidden.has(r.layer)) continue;
-        gl.drawArrays(gl.TRIANGLES, r.offset / STRIDE, r.len / STRIDE);
+        drawRange(gl.TRIANGLES, r, 3);
       }
     }
     if (layout.lines_len > 0) {
@@ -178,7 +239,7 @@ export class Renderer {
       bind(bufs.lines);
       for (const r of layout.line_ranges) {
         if (hidden.has(r.layer)) continue;
-        gl.drawArrays(gl.LINES, r.offset / STRIDE, r.len / STRIDE);
+        drawRange(gl.LINES, r, 2);
       }
     }
     if (layout.points_len > 0) {
@@ -186,7 +247,7 @@ export class Renderer {
       gl.uniform1f(this.uPoint, Math.max(2, Math.round(2.5 * opts.dpr)));
       for (const r of layout.point_ranges) {
         if (hidden.has(r.layer)) continue;
-        gl.drawArrays(gl.POINTS, r.offset / STRIDE, r.len / STRIDE);
+        drawRange(gl.POINTS, r);
       }
     }
   }

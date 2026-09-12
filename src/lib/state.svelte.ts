@@ -6,14 +6,24 @@ import { t } from "./i18n.svelte";
 
 export type Tool = "pan" | "measure";
 
+/** localStorage throws when cookies/site data are blocked — never let that
+ *  take the whole app down at module load. */
+function stored(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 function initialLang(): "zh" | "en" {
-  const saved = localStorage.getItem("rcv.lang");
+  const saved = stored("rcv.lang");
   if (saved === "zh" || saved === "en") return saved;
   return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
 }
 
 function initialTheme(): "dark" | "light" {
-  const saved = localStorage.getItem("rcv.theme");
+  const saved = stored("rcv.theme");
   if (saved === "dark" || saved === "light") return saved;
   return "dark";
 }
@@ -37,17 +47,28 @@ export const app = $state({
   panelOpen: true,
   dragging: false,
   fitTick: 0,
+  status: "",
+  recents: [] as RecentFile[],
 });
 
 export function setTheme(theme: "dark" | "light") {
   app.theme = theme;
-  localStorage.setItem("rcv.theme", theme);
+  try {
+    localStorage.setItem("rcv.theme", theme);
+  } catch {
+    /* storage unavailable — theme still applies for this session */
+  }
   document.documentElement.dataset.theme = theme;
 }
 
 export function setLang(lang: "zh" | "en") {
   app.lang = lang;
-  localStorage.setItem("rcv.lang", lang);
+  try {
+    localStorage.setItem("rcv.lang", lang);
+  } catch {
+    /* storage unavailable */
+  }
+  document.documentElement.lang = lang;
 }
 
 // ---------------------------------------------------------------- recents
@@ -59,9 +80,10 @@ export interface RecentFile {
 }
 
 export function getRecent(): RecentFile[] {
+  const raw = stored("rcv.recent");
+  if (!raw) return [];
   try {
-    const raw = localStorage.getItem("rcv.recent");
-    return raw ? (JSON.parse(raw) as RecentFile[]) : [];
+    return JSON.parse(raw) as RecentFile[];
   } catch {
     return [];
   }
@@ -70,15 +92,35 @@ export function getRecent(): RecentFile[] {
 export function addRecent(path: string) {
   const name = path.split(/[\\/]/).pop() ?? path;
   const list = [{ path, name, ts: Date.now() }, ...getRecent().filter((r) => r.path !== path)];
-  localStorage.setItem("rcv.recent", JSON.stringify(list.slice(0, 6)));
+  const kept = list.slice(0, 6);
+  try {
+    localStorage.setItem("rcv.recent", JSON.stringify(kept));
+  } catch {
+    /* storage unavailable */
+  }
+  // Mirror into state: the empty-state list is rendered from here, so it can
+  // no longer go stale after opening a file.
+  app.recents = kept;
 }
+
+app.recents = getRecent();
 
 // ---------------------------------------------------------------- open
 
 /** Loads a drawing file through the Rust backend (auto-converts DWG via dwg2dxf). */
+let statusTimer: ReturnType<typeof setTimeout> | undefined;
+export function setStatus(msg: string) {
+  app.status = msg;
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => (app.status = ""), 3000);
+}
+
 export async function openFile(path: string) {
+  // One load at a time: a second drop while a big drawing is parsing would
+  // race the first, and whichever finished last would win.
+  if (app.loading) return;
   const lower = path.toLowerCase();
-  if (!lower.endsWith(".dxf") && !lower.endsWith(".dxb") && !lower.endsWith(".dwg")) {
+  if (!lower.endsWith(".dxf") && !lower.endsWith(".dwg")) {
     app.error = t("unsupportedFmt");
     return;
   }
@@ -95,6 +137,10 @@ export async function openFile(path: string) {
     app.scene = scene;
     app.activeLayout = 0;
     app.hidden.clear();
+    // Layers switched off inside the drawing start hidden ("Show all" reveals).
+    scene.meta.layers.forEach((l, i) => {
+      if (l.off) app.hidden.add(i);
+    });
     app.measureResult = null;
     app.tool = "pan";
     addRecent(path);

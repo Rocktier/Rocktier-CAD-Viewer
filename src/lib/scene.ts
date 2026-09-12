@@ -59,13 +59,23 @@ export interface SceneMeta {
   /** True when the input was a DWG that was converted on-the-fly. */
   was_dwg: boolean;
   truncated: boolean;
+  /** Entities recognised but not renderable (HATCH, unresolved INSERT, …). */
+  skipped: number;
 }
 
-export interface Scene {
-  meta: SceneMeta;
-  buffer: ArrayBuffer;
-  /** Byte offset of the geometry region inside `buffer`. */
-  geometryOffset: number;
+/**
+ * A parsed scene.  Deliberately a class: Svelte's `$state` deep-proxies plain
+ * objects and arrays, and a drawing carries tens of thousands of text items and
+ * range specs that the renderer walks every frame — proxying them costs more
+ * than the drawing itself.  Class instances are left untouched by the proxy.
+ */
+export class Scene {
+  constructor(
+    readonly meta: SceneMeta,
+    readonly buffer: ArrayBuffer,
+    /** Byte offset of the geometry region inside `buffer`. */
+    readonly geometryOffset: number,
+  ) {}
 }
 
 const decoder = new TextDecoder();
@@ -78,7 +88,7 @@ export function parseBlob(buf: ArrayBuffer): Scene {
   const metaLen = new DataView(buf).getUint32(4, true);
   if (8 + metaLen > buf.byteLength) throw new Error("数据损坏 / corrupted data");
   const meta = JSON.parse(decoder.decode(new Uint8Array(buf, 8, metaLen))) as SceneMeta;
-  return { meta, buffer: buf, geometryOffset: 8 + metaLen };
+  return new Scene(meta, buf, 8 + metaLen);
 }
 
 /** Model space display name. */

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { app, getRecent, openFile } from "../lib/state.svelte";
+  import { app, openFile } from "../lib/state.svelte";
   import { t } from "../lib/i18n.svelte";
 
   type Props = { onOpen: () => void };
   let { onOpen }: Props = $props();
 
-  const recents = $derived(getRecent());
+  const recents = $derived(app.recents);
 
   function openRecent(path: string) {
     void openFile(path);

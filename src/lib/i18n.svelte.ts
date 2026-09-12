@@ -13,8 +13,10 @@ const zh: Dict = {
   searchLayer: "搜索图层…",
   measure: "测距",
   pan: "平移",
-  measuring: "测量中：点击两个点，Esc 取消",
+  measuring: "测量中：拖拽或点击两个点（自动吸附端点/中点，按 Shift 关闭吸附），Esc 取消",
   measured: "距离",
+  snapEndpoint: "端点",
+  snapMidpoint: "中点",
   fitView: "适应窗口",
   offline: "离线运行 · 零上传",
   parsing: "解析图纸…",
@@ -38,9 +40,12 @@ const zh: Dict = {
   segs: "图元",
   texts: "文字",
   truncated: "超大图纸：已到渲染上限，部分图元未显示",
+  skipped: "未支持的图元",
+  skippedHint: "HATCH / SOLID / 未解析的块引用等未绘制",
   theme: "主题",
   langLabel: "语言",
   panel: "图层面板",
+  oneFileOnly: "一次只能打开一个文件，已打开首个",
 };
 
 const en: Dict = {
@@ -54,8 +59,10 @@ const en: Dict = {
   searchLayer: "Search layers…",
   measure: "Measure",
   pan: "Pan",
-  measuring: "Measuring: click two points, Esc to cancel",
+  measuring: "Measuring: drag or click two points (snaps to endpoints/midpoints, hold Shift to disable), Esc to cancel",
   measured: "Distance",
+  snapEndpoint: "Endpoint",
+  snapMidpoint: "Midpoint",
   fitView: "Fit",
   offline: "Offline · no uploads",
   parsing: "Parsing drawing…",
@@ -79,9 +86,12 @@ const en: Dict = {
   segs: "Entities",
   texts: "Texts",
   truncated: "Huge drawing: render budget reached, some entities are hidden",
+  skipped: "unsupported entities",
+  skippedHint: "HATCH / SOLID / unresolved block references are not drawn",
   theme: "Theme",
   langLabel: "Language",
   panel: "Layers panel",
+  oneFileOnly: "One file at a time — opened the first",
 };
 
 const dicts: Record<"zh" | "en", Dict> = { zh, en };

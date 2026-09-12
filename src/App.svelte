@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { open } from "@tauri-apps/plugin-dialog";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import Stage from "./components/Stage.svelte";
   import LayersPanel from "./components/LayersPanel.svelte";
   import AboutDialog from "./components/AboutDialog.svelte";
-  import { app, openFile, setTheme, setLang } from "./lib/state.svelte";
+  import { app, openFile, setStatus, setTheme, setLang } from "./lib/state.svelte";
   import { t } from "./lib/i18n.svelte";
   import { formatCoord, formatCount, formatDuration } from "./lib/format";
 
@@ -14,7 +16,7 @@
   async function pickFile() {
     const sel = await open({
       multiple: false,
-      filters: [{ name: "CAD", extensions: ["dxf", "dxb", "dwg"] }],
+      filters: [{ name: "CAD", extensions: ["dxf", "dwg"] }],
     });
     if (typeof sel === "string") await openFile(sel);
   }
@@ -23,32 +25,58 @@
     app.tool = app.tool === "measure" ? "pan" : "measure";
   }
 
+  /** Open a drawing the OS handed us (file association / "Open with"). */
+  function openFirst(paths: string[] | null | undefined) {
+    if (!paths?.length) return;
+    if (paths.length > 1) setStatus(t("oneFileOnly"));
+    void openFile(paths[0]);
+  }
+
   onMount(() => {
-    let unlisten: (() => void) | null = null;
-    getCurrentWindow()
-      .onDragDropEvent((event) => {
+    const unlisteners: Array<() => void> = [];
+    let cancelled = false;
+    let dragTimer: ReturnType<typeof setTimeout> | undefined;
+    // If the component dies before `unlisten` resolves, drop the listener
+    // immediately instead of leaving it attached to a dead view.
+    const keep = (p: Promise<() => void>) =>
+      p.then((u) => (cancelled ? u() : unlisteners.push(u))).catch(() => {});
+
+    keep(
+      getCurrentWindow().onDragDropEvent((event) => {
         const p = event.payload;
         if (p.type === "enter" || p.type === "over") {
           app.dragging = true;
-        } else if (p.type === "leave") {
+          // A drag cancelled with Esc leaves no `leave`/`drop` behind; without
+          // this the drop overlay would cover the canvas forever.
+          clearTimeout(dragTimer);
+          dragTimer = setTimeout(() => (app.dragging = false), 1200);
+        } else if (p.type === "leave" || p.type === "drop") {
+          clearTimeout(dragTimer);
           app.dragging = false;
-        } else if (p.type === "drop") {
-          app.dragging = false;
-          const path = p.paths?.[0];
-          if (path) void openFile(path);
+          if (p.type === "drop") openFirst(p.paths);
         }
-      })
-      .then((u) => (unlisten = u));
-    return () => unlisten?.();
+      }),
+    );
+
+    // Files opened before the UI existed (cold start) …
+    invoke<string[]>("opened_files")
+      .then(openFirst)
+      .catch(() => {});
+    // … and while it was already running.
+    keep(listen<string[]>("opened", (e) => openFirst(e.payload)));
+
+    return () => {
+      cancelled = true;
+      clearTimeout(dragTimer);
+      unlisteners.forEach((u) => u());
+    };
   });
 </script>
 
 <div class="app" data-theme={app.theme}>
   <header class="app-head">
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 32 32" fill="none">
-        <path d="M6 22 L13 7 L26 12 L22 25 Z" fill="currentColor" />
-      </svg>
+      <img class="brand-mark" src="/icon.svg" alt="" aria-hidden="true" />
       <span class="brand-word">Rocktier CAD Viewer<i></i></span>
     </div>
     <span class="brand-sub">DXF · DWG · OFFLINE</span>
@@ -108,7 +136,7 @@
           </svg>
         {/if}
       </button>
-      <button class="ghost lang-btn" title={t("langLabel")} onclick={() => setLang(app.lang === "zh" ? "en" : "zh")}>
+      <button class="ghost lang-btn" title={t("langLabel")} aria-label={t("langLabel")} onclick={() => setLang(app.lang === "zh" ? "en" : "zh")}>
         {app.lang === "zh" ? "EN" : "中文"}
       </button>
       <button class="ghost" title={t("about")} aria-label={t("about")} onclick={() => (app.aboutOpen = true)}>i</button>
@@ -122,6 +150,10 @@
     {/if}
   </div>
 
+  {#if app.status}
+    <div class="app-snackbar" role="status">{app.status}</div>
+  {/if}
+
   <footer class="statusbar">
     {#if app.scene}
       <span class="status-item"><i class="status-red"></i>{app.scene.meta.layouts[app.activeLayout]?.name ?? "—"}</span>
@@ -130,6 +162,11 @@
       <span class="grow"></span>
       {#if app.scene.meta.truncated}
         <span class="status-item status-warn">⚠ {t("truncated")}</span>
+      {/if}
+      {#if app.scene.meta.skipped > 0}
+        <span class="status-item status-warn" title={t("skippedHint")}>
+          ⚠ {t("skipped")} {formatCount(app.scene.meta.skipped)}
+        </span>
       {/if}
       <span class="status-item">{t("zoom")} {app.zoomPct}%</span>
       <span class="status-item">{t("segs")} {formatCount(app.scene.meta.segments)}</span>

@@ -29,7 +29,7 @@
 
   function hideAll() {
     for (let i = 0; i < (app.scene?.meta.layers.length ?? 0); i++) {
-      if (app.scene?.meta.layers[i].name !== "Defpoints") app.hidden.add(i);
+      app.hidden.add(i);
     }
   }
 </script>
@@ -40,32 +40,33 @@
       <span>{t("layers")}</span>
       <span class="count">{app.scene ? app.scene.meta.layers.length : 0}</span>
     </div>
-    <input class="panel-search" placeholder={t("searchLayer")} bind:value={search} />
+    <input class="panel-search" placeholder={t("searchLayer")} aria-label={t("searchLayer")} bind:value={search} />
   </div>
 
   <div class="panel-list">
     {#if rows.length === 0}
       <div class="panel-empty">—</div>
     {/if}
-    {#each rows as l (l.name)}
-      <div class="layer-row" class:off={app.hidden.has(l.i) || l.off}>
+    {#each rows as l (l.i)}
+      <!-- `off` (switched off inside the drawing) only seeds `app.hidden`;
+           visibility itself is owned by `app.hidden`, so a layer stays
+           toggleable and the rows match what the canvas draws. -->
+      <div class="layer-row" class:off={app.hidden.has(l.i)}>
         <span class="layer-swatch" style={swatchStyle(l)}></span>
         <span class="layer-name" title={l.name}>{l.name}</span>
-        {#if !l.off}
-          <button class="eye-btn" onclick={() => toggle(l.i)} aria-label={l.name}>
-            {#if app.hidden.has(l.i)}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-            {:else}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            {/if}
-          </button>
-        {/if}
+        <button class="eye-btn" onclick={() => toggle(l.i)} aria-pressed={app.hidden.has(l.i)} aria-label={l.name}>
+          {#if app.hidden.has(l.i)}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg>
+          {:else}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          {/if}
+        </button>
       </div>
     {/each}
   </div>

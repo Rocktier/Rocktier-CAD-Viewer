@@ -42,17 +42,23 @@ export class Camera {
   }
 
   fit(minx: number, miny: number, maxx: number, maxy: number) {
-    if (!(maxx > minx) && !(maxy > miny)) {
-      // Empty extents: reset to a sane default view.
+    if (![minx, miny, maxx, maxy].every((v) => Number.isFinite(v))) {
       this.cx = 0;
       this.cy = 0;
       this.scale = 1;
       this.fitScale = 1;
       return;
     }
-    // Guard against zero-area extents (e.g. a single point).
-    const w = Math.max(maxx - minx, Math.abs(maxx + minx) * 1e-3, 1e-6);
-    const h = Math.max(maxy - miny, Math.abs(maxy + miny) * 1e-3, 1e-6);
+    // Degenerate extents (a single point, everything coincident): fall back to
+    // a small box around the data — never to the origin, which would render a
+    // blank canvas for any drawing stored in survey coordinates.
+    const spanX = maxx - minx;
+    const spanY = maxy - miny;
+    // Only pad the span when it is actually zero: unconditionally mixing in
+    // `|min+max| * 1e-3` made small drawings at large coordinates fit to a box
+    // a hundred times their size, i.e. look empty.
+    const w = spanX > 0 ? spanX : Math.max(Math.abs(maxx) * 1e-3, 1e-6);
+    const h = spanY > 0 ? spanY : Math.max(Math.abs(maxy) * 1e-3, 1e-6);
     this.scale = Math.min((this.vw / w) * 0.92, (this.vh / h) * 0.92);
     this.scale = Math.min(Math.max(this.scale, 1e-9), 1e9);
     this.cx = (minx + maxx) / 2;
@@ -67,7 +73,25 @@ export class Camera {
     return new Float32Array([
       sx, 0, 0,
       0, sy, 0,
-      -2 * this.cx * sx, -2 * this.cy * sy, 1,
+      -this.cx * sx, -this.cy * sy, 1,
     ]);
+  }
+}
+
+/**
+ * One-shot tripwire for the projection: the view centre must land on the clip
+ * origin.  A drawing whose coordinates sit far from (0,0) — i.e. every real CAD
+ * file — renders completely off-screen if this factor is ever wrong, and the
+ * text overlay (which uses screenFromWorld) would still look fine.
+ */
+let projectionChecked = false;
+export function checkProjection(cam: Camera): void {
+  if (projectionChecked) return;
+  projectionChecked = true;
+  const m = cam.matrix();
+  const x = m[0] * cam.cx + m[3] * cam.cy + m[6];
+  const y = m[1] * cam.cx + m[4] * cam.cy + m[7];
+  if (Math.abs(x) > 1e-3 || Math.abs(y) > 1e-3) {
+    console.error("[camera] projection is off-centre — geometry will not be visible", { x, y });
   }
 }

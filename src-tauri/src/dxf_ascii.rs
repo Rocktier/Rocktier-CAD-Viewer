@@ -73,6 +73,12 @@ struct State {
     /// Entity-level colour override (group code 62) as RGBA, when present;
     /// `(0,0,0,0)` means "background colour" (ACI 7 / auto).
     cur_color: Option<(u8, u8, u8, u8)>,
+    /// Active block-insert context: the INSERT's layer index and its resolved
+    /// colour.  Per ObjectARX semantics, block content on the special layer
+    /// "0" inherits the insert's layer, and BYBLOCK (ACI 0) content inherits
+    /// the insert's colour.
+    blk_layer: Option<usize>,
+    blk_color: Option<(u8, u8, u8, u8)>,
     poly: Option<PolyAcc>,
     /// Count of recognised-but-unsupported entity types (HATCH / DIMENSION /
     /// unresolved INSERT).  Bubbles through to the UI.
@@ -100,6 +106,8 @@ impl State {
             texts: Vec::new(),
             current_layer: 0,
             cur_color: None,
+            blk_layer: None,
+            blk_color: None,
             poly: None,
             skipped: 0,
         }
@@ -487,6 +495,11 @@ impl State {
         );
         self.xf_depth += 1;
         let (saved_layer, saved_color) = (self.current_layer, self.cur_color);
+        let saved_blk = (self.blk_layer, self.blk_color);
+        // Establish the insert context that BYBLOCK content and layer-"0"
+        // content inherit from (see `set_layer`).
+        self.blk_layer = Some(self.current_layer);
+        self.blk_color = Some(self.cur_rgba());
         for (etype, pairs) in &ents {
             self.dispatch(etype, pairs);
         }
@@ -494,6 +507,8 @@ impl State {
         self.xf = (tx, ty, os, oc, osn);
         self.current_layer = saved_layer;
         self.cur_color = saved_color;
+        self.blk_layer = saved_blk.0;
+        self.blk_color = saved_blk.1;
     }
 
     fn expand_insert(&mut self, buf: &[(i32, String)]) {
@@ -705,27 +720,39 @@ impl State {
     }
 
     fn set_layer(&mut self, buf: &[(i32, String)]) {
+        // Group 8 = layer.  Block content sitting on the special layer "0"
+        // inherits the *insert's* layer (ObjectARX semantics): dimension ticks
+        // and anonymous-block geometry then toggle visibility with the
+        // dimension/insert layer instead of piling up on layer "0".
         if let Some(name) = buf.iter().find(|(c, _)| *c == 8).map(|(_, v)| v.as_str()) {
-            self.current_layer = self.layer_idx(name);
+            let li = self.layer_idx(name);
+            self.current_layer = if name == "0" {
+                self.blk_layer.unwrap_or(li)
+            } else {
+                li
+            };
         }
-        // Group code 62 on an entity overrides the layer colour.  0 (BYBLOCK)
-        // and 256 (BYLAYER) are not colours, and ACI 7 is the *background*
-        // colour (white on dark, black on light) — neither falls back to the
-        // layer, and painting ACI 7 as literal white makes the drawing vanish
-        // on a light canvas.
-        self.cur_color = buf
+        // Group code 62: 1..=255 is an explicit ACI colour, 0 = BYBLOCK
+        // (inherit the inserting entity's colour), 256/absent = BYLAYER.
+        // ACI 7 is the *background* colour (white on dark, black on light) —
+        // painting it as literal white would make the drawing vanish on a
+        // light canvas.
+        self.cur_color = match buf
             .iter()
             .find(|(c, _)| *c == 62)
             .and_then(|(_, v)| v.parse::<i32>().ok())
-            .filter(|c| (1..=255).contains(c))
-            .map(|c| {
+        {
+            Some(c) if (1..=255).contains(&c) => {
                 if c == 7 {
-                    (0, 0, 0, 0)
+                    Some((0, 0, 0, 0))
                 } else {
                     let (r, g, b) = aci_to_rgb(c as u8);
-                    (r, g, b, 255)
+                    Some((r, g, b, 255))
                 }
-            });
+            }
+            Some(0) => self.blk_color, // BYBLOCK → insert's resolved colour
+            _ => None,                 // absent / BYLAYER → layer colour
+        };
     }
 
     fn finalize(mut self, parse_time_ms: u64, was_dwg: bool, convert_ms: u64) -> Result<(SceneMeta, Vec<u8>), String> {
@@ -1115,4 +1142,41 @@ pub(crate) fn append_tri(out: &mut Vec<u8>, p1: (f64, f64), p2: (f64, f64), p3: 
     append_point(out, p1.0, p1.1, r, g, b, a);
     append_point(out, p2.0, p2.1, r, g, b, a);
     append_point(out, p3.0, p3.1, r, g, b, a);
+}
+
+// ------------------------------------------------------------------------ tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Block content on layer "0" with BYBLOCK colour inherits the INSERT's
+    /// layer and colour (ObjectARX semantics).
+    #[test]
+    fn byblock_and_layer0_inherit_from_insert() {
+        let dxf = "\
+0\nSECTION\n2\nTABLES\n0\nLAYER\n2\nDIM\n62\n8\n0\nENDTAB\n0\nENDSEC\n\
+0\nSECTION\n2\nBLOCKS\n0\nBLOCK\n2\nTICK\n0\nLWPOLYLINE\n8\n0\n62\n0\n90\n2\n10\n0.0\n20\n0.0\n10\n1.0\n20\n1.0\n0\nENDBLK\n0\nENDSEC\n\
+0\nSECTION\n2\nENTITIES\n0\nINSERT\n2\nTICK\n8\nDIM\n62\n8\n10\n0.0\n20\n0.0\n0\nENDSEC\n0\nEOF\n";
+        let (meta, geo) = parse_and_build(dxf, 0, false, 0).unwrap();
+        let dim = meta.layers.iter().position(|l| l.name == "DIM").unwrap();
+        // The polyline must land on the insert's layer "DIM", not "0".
+        let range = meta.layouts[0].line_ranges.iter().find(|r| r.layer as usize == dim).expect("geometry on DIM");
+        let bytes = &geo[meta.layouts[0].lines_offset as usize..][range.offset as usize..][..range.len as usize];
+        // ACI 8 = 0x808080 grey, inherited via BYBLOCK from the INSERT.
+        assert_eq!(&bytes[8..12], &[0x80, 0x80, 0x80, 255]);
+        // Nothing may land on layer "0" — it was absorbed by the insert's layer.
+        assert!(!meta.layouts[0].line_ranges.iter().any(|r| meta.layers[r.layer as usize].name == "0"));
+    }
+
+    /// Explicit entity colours are kept literal (ACI 2 yellow stays yellow);
+    /// ACI 7 resolves to the adaptive "auto" colour (alpha 0).
+    #[test]
+    fn explicit_aci_and_auto() {
+        let dxf = "0\nSECTION\n2\nENTITIES\n0\nLINE\n8\nL1\n62\n2\n10\n0\n20\n0\n11\n1\n21\n0\n0\nLINE\n8\nL1\n62\n7\n10\n0\n20\n0\n11\n2\n21\n0\n0\nENDSEC\n0\nEOF\n";
+        let (meta, geo) = parse_and_build(dxf, 0, false, 0).unwrap();
+        let bytes = &geo[meta.layouts[0].lines_offset as usize..][..meta.layouts[0].lines_len as usize];
+        assert_eq!(&bytes[8..12], &[255, 255, 0, 255]); // ACI 2 literal
+        assert_eq!(&bytes[8 + 24..8 + 28], &[0, 0, 0, 0]); // ACI 7 → auto
+    }
 }

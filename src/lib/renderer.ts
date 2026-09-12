@@ -154,7 +154,15 @@ export class Renderer {
     const gl = this.gl;
     if (!gl) return;
     if (this.uploadedScene === scene) return;
-    this.dispose();
+    // Drop only the old geometry buffers.  A full `dispose()` here would also
+    // delete the shader program and detach the context-loss listeners,
+    // leaving the renderer permanently unable to draw (blank canvas).
+    for (const b of this.buffers.values()) {
+      gl.deleteBuffer(b.lines);
+      gl.deleteBuffer(b.tris);
+      gl.deleteBuffer(b.points);
+    }
+    this.buffers.clear();
     this.uploadedScene = scene;
     const bytes = new Uint8Array(scene.buffer);
     const base = scene.geometryOffset;

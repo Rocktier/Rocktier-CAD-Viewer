@@ -14,7 +14,7 @@
 
   function swatchStyle(l: { r: number; g: number; b: number; auto: boolean }) {
     return l.auto
-      ? `background:${app.theme === "dark" ? "#fff" : "#000"}`
+      ? `background:#fff`
       : `background:rgb(${l.r},${l.g},${l.b})`;
   }
 

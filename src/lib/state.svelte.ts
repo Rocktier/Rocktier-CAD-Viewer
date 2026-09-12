@@ -22,14 +22,7 @@ function initialLang(): "zh" | "en" {
   return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
 }
 
-function initialTheme(): "dark" | "light" {
-  const saved = stored("rcv.theme");
-  if (saved === "dark" || saved === "light") return saved;
-  return "dark";
-}
-
 export const app = $state({
-  theme: initialTheme(),
   lang: initialLang(),
   loading: false,
   loadingMsg: "",
@@ -50,16 +43,6 @@ export const app = $state({
   status: "",
   recents: [] as RecentFile[],
 });
-
-export function setTheme(theme: "dark" | "light") {
-  app.theme = theme;
-  try {
-    localStorage.setItem("rcv.theme", theme);
-  } catch {
-    /* storage unavailable — theme still applies for this session */
-  }
-  document.documentElement.dataset.theme = theme;
-}
 
 export function setLang(lang: "zh" | "en") {
   app.lang = lang;

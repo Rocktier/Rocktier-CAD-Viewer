@@ -36,10 +36,11 @@
 
   const dpr = () => Math.min(window.devicePixelRatio || 1, 2.5);
 
+  // Dark canvas only (CAD convention): ACI 7 renders white, background is
+  // near-black.  Coloured entities keep their file colours — yellow dimension
+  // text etc. stays readable, unlike on a white canvas.
   function themeColors() {
-    return app.theme === "dark"
-      ? { bg: [10, 10, 10] as [number, number, number], auto: [255, 255, 255] as [number, number, number], autoCss: "rgba(255,255,255,0.95)", red: "#FF4A3D" }
-      : { bg: [255, 255, 255] as [number, number, number], auto: [26, 26, 26] as [number, number, number], autoCss: "rgba(0,0,0,0.92)", red: "#E64537" };
+    return { bg: [10, 10, 10] as [number, number, number], auto: [255, 255, 255] as [number, number, number], autoCss: "rgba(255,255,255,0.95)", red: "#FF4A3D" };
   }
 
   function draw() {
@@ -110,7 +111,6 @@
   $effect(() => {
     void app.scene;
     void app.activeLayout;
-    void app.theme;
     void app.tool;
     void app.measureResult;
     void app.hidden.size;

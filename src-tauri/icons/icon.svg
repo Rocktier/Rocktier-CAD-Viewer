@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- 1. Background: Rocktier family #0A0A0A, 19.5% corner radius -->
+  <rect x="32" y="32" width="960" height="960" rx="200" ry="200" fill="#0A0A0A"/>
+  <rect x="32" y="32" width="960" height="960" rx="200" ry="200" fill="none" stroke="#333333" stroke-width="6"/>
+
+  <!-- 2. CAD accent: faint blueprint grid lines (opacity 0.04, ultra-subtle) -->
+  <g opacity="0.04" stroke="#FFFFFF" stroke-width="1.5">
+    <!-- Horizontal grid lines every 64px -->
+    <line x1="80"   y1="400" x2="944"  y2="400"/>
+    <line x1="80"   y1="464" x2="944"  y2="464"/>
+    <line x1="80"   y1="528" x2="944"  y2="528"/>
+    <line x1="80"   y1="592" x2="944"  y2="592"/>
+    <line x1="80"   y1="656" x2="944"  y2="656"/>
+    <line x1="80"   y1="720" x2="944"  y2="720"/>
+    <line x1="80"   y1="784" x2="700"  y2="784"/>
+    <line x1="80"   y1="848" x2="560"  y2="848"/>
+    <!-- Vertical grid lines every 64px -->
+    <line x1="200"  y1="400" x2="200"  y2="900"/>
+    <line x1="264"  y1="400" x2="264"  y2="900"/>
+    <line x1="328"  y1="400" x2="328"  y2="900"/>
+    <line x1="392"  y1="400" x2="392"  y2="900"/>
+    <line x1="456"  y1="400" x2="456"  y2="900"/>
+    <line x1="520"  y1="400" x2="520"  y2="900"/>
+    <line x1="584"  y1="400" x2="584"  y2="848"/>
+    <line x1="648"  y1="400" x2="648"  y2="784"/>
+    <!-- Corner bracket (upper-right, CAD drafting symbol) -->
+    <polyline points="824,400 900,400 900,476" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Dimension line with arrows (bottom-right) -->
+    <g stroke="#FFFFFF" stroke-width="2" fill="#FFFFFF">
+      <line x1="760" y1="840" x2="880" y2="840"/>
+      <polygon points="760,840 772,836 772,844"/>
+      <polygon points="880,840 868,836 868,844"/>
+    </g>
+  </g>
+
+  <!-- 3. Top-left: Rocktier badge (circle + checkmark) -->
+  <g transform="translate(128,128) scale(0.85)">
+    <circle cx="180" cy="180" r="160" fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round"/>
+    <polyline points="120,185 165,230 245,130" fill="none" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- 4. Top-right: Rocktier accent dot (always on, brand signature) -->
+  <circle cx="836" cy="164" r="40" fill="#FF4A3D"/>
+
+  <!-- 5. Product code: CV (CAD Viewer) -->
+  <text x="512" y="640"
+        font-family="'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
+        font-weight="700" font-size="360" fill="#FFFFFF"
+        text-anchor="middle" dominant-baseline="central"
+        letter-spacing="-20">CV</text>
+</svg>

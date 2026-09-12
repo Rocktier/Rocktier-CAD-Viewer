@@ -34,6 +34,34 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["dwg"],
+        "name": "CAD Drawing",
+        "description": "AutoCAD DWG drawing",
+        "mimeType": "image/vnd.dwg",
+        "role": "Viewer",
+        "exportedType": {
+          "identifier": "studio.rocktier.cadviewer.dwg",
+          "conformsTo": ["public.data"]
+        }
+      },
+      {
+        "ext": ["dxf"],
+        "name": "CAD Drawing Exchange Format",
+        "description": "AutoCAD DXF drawing",
+        "mimeType": "image/vnd.dxf",
+        "role": "Viewer",
+        "exportedType": {
+          "identifier": "studio.rocktier.cadviewer.dxf",
+          "conformsTo": ["public.data"]
+        }
+      }
+    ],
+    "macOS": {
+      "entitlements": "Entitlements.plist",
+      "minimumSystemVersion": "10.15"
+    }
   }
 }

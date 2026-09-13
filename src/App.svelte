@@ -59,6 +59,21 @@
       }),
     );
 
+    // 家族标准菜单：按 UI 语言构建，自定义项经 menu-action 事件回到这里。
+    invoke("build_menu", { lang: app.lang }).catch(() => {});
+    keep(
+      listen<string>("menu-action", (e) => {
+        switch (e.payload) {
+          case "open": void pickFile(); break;
+          case "fit": app.fitTick++; break;
+          case "fit-core": app.fitCoreTick++; break;
+          case "panel": app.panelOpen = !app.panelOpen; break;
+          case "website": void invoke("open_url", { url: "https://rocktier.com/" }).catch(() => {}); break;
+          case "feedback": void invoke("open_url", { url: "mailto:hello@rocktier.studio" }).catch(() => {}); break;
+        }
+      }),
+    );
+
     // Files opened before the UI existed (cold start) …
     invoke<string[]>("opened_files")
       .then(openFirst)
@@ -142,7 +157,7 @@
           </svg>
         </button>
       {/if}
-      <button class="ghost lang-btn" title={t("langLabel")} aria-label={t("langLabel")} onclick={() => setLang(app.lang === "zh" ? "en" : "zh")}>
+      <button class="ghost lang-btn" title={t("langLabel")} aria-label={t("langLabel")} onclick={() => { setLang(app.lang === "zh" ? "en" : "zh"); invoke("build_menu", { lang: app.lang }).catch(() => {}); }}>
         {app.lang === "zh" ? "EN" : "中文"}
       </button>
       <button class="ghost" title={t("about")} aria-label={t("about")} onclick={() => (app.aboutOpen = true)}>i</button>

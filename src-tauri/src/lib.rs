@@ -2,6 +2,7 @@ pub mod aci;
 pub mod commands;
 pub mod drawing;
 pub mod dxf_ascii;
+pub mod menu;
 pub mod model;
 pub mod pdf;
 
@@ -36,6 +37,12 @@ fn push_opened_files(app: &tauri::AppHandle, paths: Vec<String>) {
 }
 
 /// Drains the buffered paths; the frontend calls this once on startup.
+/// 前端挂载后（及语言切换时）按 UI 语言重建菜单。
+#[tauri::command]
+fn build_menu(app: tauri::AppHandle, lang: String) -> Result<(), String> {
+    menu::build(&app, &lang).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn opened_files(state: tauri::State<OpenedFiles>) -> Vec<String> {
     state
@@ -47,7 +54,10 @@ fn opened_files(state: tauri::State<OpenedFiles>) -> Vec<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default();
+    let builder = tauri::Builder::default()
+        .on_menu_event(|app, event| {
+            let _ = app.emit("menu-action", event.id().0.clone());
+        });
 
     // Registered first: on Windows/Linux the shell opens a file by launching a
     // second process, and this forwards its argv to the running instance, so
@@ -65,6 +75,7 @@ pub fn run() {
             commands::open_drawing,
             commands::open_url,
             commands::save_export,
+            build_menu,
             opened_files
         ])
         .build(tauri::generate_context!())

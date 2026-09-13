@@ -49,7 +49,7 @@ pub fn jpeg_page(jpeg: &[u8], px_w: u32, px_h: u32, title: &str) -> Result<Vec<u
     let mut offsets: Vec<usize> = Vec::with_capacity(6);
     out.extend_from_slice(b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
 
-    let mut push_obj = |out: &mut Vec<u8>, offsets: &mut Vec<usize>, body: &[u8]| {
+    let push_obj = |out: &mut Vec<u8>, offsets: &mut Vec<usize>, body: &[u8]| {
         offsets.push(out.len());
         let n = offsets.len();
         out.extend_from_slice(format!("{n} 0 obj\n").as_bytes());

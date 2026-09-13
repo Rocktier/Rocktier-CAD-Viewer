@@ -65,12 +65,37 @@ things to keep in mind:
 ## Known gaps
 
 - DWG needs a `dwg2dxf` binary (LibreDWG) next to the executable or on `PATH`;
-  the build does not bundle it yet.
-- Pre-R2007 DWG text/layer names may use a non-GBK 8-bit codepage that is not
-  transcoded.
-- Multi-layout (paper space) extraction: a single "Model" layout is emitted.
-- HATCH / SOLID / LEADER / RAY / XLINE geometry is skipped (shown by the status
-  bar's "unsupported entities" counter).
+  `build_app.sh` bundles it into the macOS `.app`, the Windows build ships it as
+  a sidecar.
+- Text is decoded as UTF-8 or GBK (the two encodings Chinese exports actually
+  use); other 8-bit code pages (BIG5, Shift-JIS, …) are not transcoded.
+- MULTILEADER geometry lives in embedded context data and is not drawn; `LEADER`
+  is.  WIPEOUT masks are drawn (background colour, last pass), patterns are
+  regenerated from the pattern definition — islands are honoured, but a pattern
+  whose definition a writer omitted falls back to its boundary.
+- Paper space: one layout per `*Paper_Space*` block, named `Layout N`, with model
+  space projected through each VIEWPORT.  Layout *names* come from the block
+  names, not from the LAYOUT objects in the OBJECTS section.
+- RAY / XLINE (infinite construction lines) are approximated by their two
+  definition points; unresolved external references are counted as unsupported.
+
+## Diagnostics
+
+Two tools make "the drawing looks incomplete" a measurable claim instead of an
+impression:
+
+```bash
+# Per-layer coverage + a blob dump of exactly what the viewer would draw
+cd src-tauri
+cargo run --features tools --bin coverage -- ../testdata/real/<drawing>.dwg --dump /tmp/dump
+
+# Rasterise the dump to compare against AutoCAD / another viewer
+python3 tools/render_scene.py /tmp/dump -o /tmp/shot.png
+```
+
+Real drawings used for regression live in `testdata/real/` and are git-ignored
+(they are customer files); the E2E test picks the first one it finds, or honours
+`RCV_REAL_DWG`.
 
 ## License
 

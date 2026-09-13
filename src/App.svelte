@@ -7,6 +7,7 @@
   import Stage from "./components/Stage.svelte";
   import LayersPanel from "./components/LayersPanel.svelte";
   import AboutDialog from "./components/AboutDialog.svelte";
+  import ExportDialog from "./components/ExportDialog.svelte";
   import { app, openFile, setStatus, setLang } from "./lib/state.svelte";
   import { t } from "./lib/i18n.svelte";
   import { formatCoord, formatCount, formatDuration } from "./lib/format";
@@ -110,6 +111,17 @@
         </button>
         <button
           class="ghost"
+          title={t("exportTitle")} aria-label={t("exportTitle")}
+          onclick={() => (app.exportOpen = true)}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12" />
+            <path d="m7 10 5 5 5-5" />
+            <path d="M4 19h16" />
+          </svg>
+        </button>
+        <button
+          class="ghost"
           title={t("fitContent")} aria-label={t("fitContent")}
           onclick={() => app.fitCoreTick++}
         >
@@ -184,4 +196,5 @@
   </footer>
 
   <AboutDialog />
+  <ExportDialog />
 </div>

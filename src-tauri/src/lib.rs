@@ -3,6 +3,7 @@ pub mod commands;
 pub mod drawing;
 pub mod dxf_ascii;
 pub mod model;
+pub mod pdf;
 
 use std::sync::Mutex;
 
@@ -63,6 +64,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::open_drawing,
             commands::open_url,
+            commands::save_export,
             opened_files
         ])
         .build(tauri::generate_context!())

@@ -7,12 +7,15 @@ attribute vec4 a_col;
 uniform mat3 u_m;
 uniform vec3 u_auto;
 uniform float u_point;
+uniform float u_mono;
 varying vec4 v_col;
 void main() {
   vec3 p = u_m * vec3(a_pos, 1.0);
   gl_Position = vec4(p.xy, 0.0, 1.0);
   gl_PointSize = u_point;
-  v_col = a_col.a < 0.5 ? vec4(u_auto, 1.0) : a_col;
+  vec4 c = a_col.a < 0.5 ? vec4(u_auto, 1.0) : a_col;
+  // Print export: ignore every entity colour (AutoCAD's monochrome plot style).
+  v_col = u_mono > 0.5 ? vec4(u_auto, 1.0) : c;
 }
 `;
 
@@ -38,6 +41,10 @@ export interface DrawOptions {
   background: [number, number, number];
   hidden: Set<number>;
   dpr: number;
+  /** Draw everything in `autoColor` — the print/export mode. */
+  mono?: boolean;
+  /** Draw into a surface of this CSS size instead of the canvas element's. */
+  size?: { w: number; h: number };
 }
 
 /** WebGL renderer: uploads scene geometry once, draws per-layer ranges. */
@@ -47,6 +54,7 @@ export class Renderer {
   private uM: WebGLUniformLocation | null = null;
   private uAuto: WebGLUniformLocation | null = null;
   private uPoint: WebGLUniformLocation | null = null;
+  private uMono: WebGLUniformLocation | null = null;
   private aPos = 0;
   private aCol = 0;
   private buffers = new Map<number, LayoutBuffers>();
@@ -111,6 +119,7 @@ export class Renderer {
     this.uM = gl.getUniformLocation(prog, "u_m");
     this.uAuto = gl.getUniformLocation(prog, "u_auto");
     this.uPoint = gl.getUniformLocation(prog, "u_point");
+    this.uMono = gl.getUniformLocation(prog, "u_mono");
     this.aPos = gl.getAttribLocation(prog, "a_pos");
     this.aCol = gl.getAttribLocation(prog, "a_col");
     gl.enableVertexAttribArray(this.aPos);
@@ -198,8 +207,8 @@ export class Renderer {
     const gl = this.gl;
     if (!gl || !this.program) return;
 
-    const w = Math.max(1, Math.round(canvas.clientWidth * opts.dpr));
-    const h = Math.max(1, Math.round(canvas.clientHeight * opts.dpr));
+    const w = Math.max(1, Math.round((opts.size?.w ?? canvas.clientWidth) * opts.dpr));
+    const h = Math.max(1, Math.round((opts.size?.h ?? canvas.clientHeight) * opts.dpr));
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
@@ -215,6 +224,7 @@ export class Renderer {
     gl.uniformMatrix3fv(this.uM, false, cam.matrix());
     const [ar, ag, ab] = opts.autoColor;
     gl.uniform3f(this.uAuto, ar / 255, ag / 255, ab / 255);
+    gl.uniform1f(this.uMono, opts.mono ? 1 : 0);
 
     const layout = this.uploadedScene?.meta.layouts[layoutIdx];
     const bufs = this.buffers.get(layoutIdx);

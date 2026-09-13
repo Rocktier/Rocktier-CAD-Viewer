@@ -37,7 +37,10 @@ export const app = $state({
   coords: { x: 0, y: 0 },
   zoomPct: 100,
   aboutOpen: false,
+  exportOpen: false,
   panelOpen: true,
+  /** Live camera snapshot — the exporter reproduces the current view from it. */
+  camera: { cx: 0, cy: 0, scale: 0, vw: 1, vh: 1 },
   dragging: false,
   /** Bumped to request "fit the whole drawing" (includes stray geometry). */
   fitTick: 0,

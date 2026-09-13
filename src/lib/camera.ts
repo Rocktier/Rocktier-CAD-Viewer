@@ -41,7 +41,8 @@ export class Camera {
     this.cy = w.y + (sy - this.vh / 2) / this.scale;
   }
 
-  fit(minx: number, miny: number, maxx: number, maxy: number) {
+  /** `pad` < 1 leaves a margin; 1 fits the box exactly (used by the exporter). */
+  fit(minx: number, miny: number, maxx: number, maxy: number, pad = 0.92) {
     if (![minx, miny, maxx, maxy].every((v) => Number.isFinite(v))) {
       this.cx = 0;
       this.cy = 0;
@@ -59,7 +60,7 @@ export class Camera {
     // a hundred times their size, i.e. look empty.
     const w = spanX > 0 ? spanX : Math.max(Math.abs(maxx) * 1e-3, 1e-6);
     const h = spanY > 0 ? spanY : Math.max(Math.abs(maxy) * 1e-3, 1e-6);
-    this.scale = Math.min((this.vw / w) * 0.92, (this.vh / h) * 0.92);
+    this.scale = Math.min((this.vw / w) * pad, (this.vh / h) * pad);
     this.scale = Math.min(Math.max(this.scale, 1e-9), 1e9);
     this.cx = (minx + maxx) / 2;
     this.cy = (miny + maxy) / 2;

@@ -74,6 +74,9 @@
       }
       return;
     }
+    // The exporter needs the live view; a plain snapshot assignment keeps the
+    // reactivity graph quiet (nothing renders from these numbers).
+    app.camera = { cx: cam.cx, cy: cam.cy, scale: cam.scale, vw: cam.vw, vh: cam.vh };
     const th = themeColors();
     if (glUsable) {
       checkProjection(cam);

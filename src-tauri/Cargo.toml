@@ -29,6 +29,8 @@ e2e-test = []
 tools = []
 
 [dependencies]
+# PNG/PDF 导出：把前端渲染的位图经 IPC 送进来（tauri 已传递依赖同一版本）
+base64 = "0.22"
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"

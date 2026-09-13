@@ -6,6 +6,10 @@ export interface TextDrawOptions {
   autoColor: string;
   hidden: Set<number>;
   dpr: number;
+  /** Render into a surface of this CSS size instead of the canvas element's. */
+  viewport?: { w: number; h: number };
+  /** Draw every label in `autoColor` — the print/export mode. */
+  mono?: boolean;
 }
 
 /**
@@ -37,9 +41,15 @@ export function drawTexts(
   opts: TextDrawOptions,
 ) {
   const dpr = opts.dpr;
-  const vw = canvas.clientWidth;
-  const vh = canvas.clientHeight;
-  syncCanvasSize(canvas, dpr);
+  const vw = opts.viewport?.w ?? canvas.clientWidth;
+  const vh = opts.viewport?.h ?? canvas.clientHeight;
+  if (opts.viewport) {
+    // Offscreen export surface: it has no layout box, so the size is explicit.
+    canvas.width = Math.max(1, Math.round(vw * dpr));
+    canvas.height = Math.max(1, Math.round(vh * dpr));
+  } else {
+    syncCanvasSize(canvas, dpr);
+  }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, vw, vh);
 
@@ -65,7 +75,8 @@ export function drawTexts(
     const p = cam.screenFromWorld(item.x, item.y);
     const lines = item.text.split("\n");
     const lineH = hPx * 1.66;
-    const fill = item.a === 0 ? opts.autoColor : `rgb(${item.r},${item.g},${item.b})`;
+    const fill =
+      opts.mono || item.a === 0 ? opts.autoColor : `rgb(${item.r},${item.g},${item.b})`;
     ctx.fillStyle = fill;
     ctx.font = `${hPx.toFixed(2)}px -apple-system, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif`;
     ctx.textAlign = item.ha === 1 ? "center" : item.ha === 2 ? "right" : "left";

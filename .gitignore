@@ -20,6 +20,12 @@ src-tauri/Cargo.lock
 # Temp files produced by dwg2dxf conversion (never commit)
 rcv_dwg_*.dxf
 
+# Provisioned LibreDWG sidecar for the Windows bundle — binaries only, the
+# directory itself is tracked (via .gitkeep) so macOS builds keep working.
+# See scripts/provision-libredwg-windows.ps1
+src-tauri/resources/libredwg/*
+!src-tauri/resources/libredwg/.gitkeep
+
 # Real drawings used for local regression — customer files, never commit
 testdata/real/*.dwg
 testdata/real/*.dxf

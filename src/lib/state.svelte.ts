@@ -1,5 +1,6 @@
 import { SvelteSet } from "svelte/reactivity";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { Scene } from "./scene";
 import { parseBlob } from "./scene";
 import { t } from "./i18n.svelte";
@@ -26,6 +27,8 @@ export const app = $state({
   lang: initialLang(),
   loading: false,
   loadingMsg: "",
+  /** Live load progress from the Rust side: `pct` < 0 means indeterminate. */
+  progress: { pct: -1, phase: "", detail: "" },
   error: "",
   fileName: "",
   filePath: "",
@@ -117,11 +120,26 @@ export async function openFile(path: string) {
   app.error = "";
   app.loading = true;
   app.loadingMsg = wasDwg ? t("converting") : t("parsing");
+  app.progress = { pct: 0, phase: wasDwg ? "convert" : "parse", detail: "" };
   app.fileName = path.split(/[\\/]/).pop() ?? path;
   app.filePath = path;
+  // Subscribe before invoking: the backend emits phases from a worker thread.
+  const unlisten = await listen<{ pct: number; phase: string; detail: string }>(
+    "load-progress",
+    (e) => {
+      app.progress = e.payload;
+      app.loadingMsg =
+        e.payload.phase === "convert"
+          ? t("converting")
+          : e.payload.phase === "build"
+            ? t("building")
+            : t("parsing");
+    },
+  );
   try {
     const res = await invoke("open_drawing", { path });
     app.loadingMsg = t("building");
+    app.progress = { pct: 97, phase: "build", detail: "" };
     const scene = parseBlob(res as ArrayBuffer);
     app.scene = scene;
     app.activeLayout = 0;
@@ -137,6 +155,7 @@ export async function openFile(path: string) {
     app.scene = null;
     app.error = `${t("errTitle")}: ${e}`;
   } finally {
+    unlisten();
     app.loading = false;
   }
 }

@@ -20,8 +20,22 @@ use crate::model::SceneMeta;
 /// viewer.
 pub const MAX_DRAWING_MIB: u64 = 200;
 
+/// Loading progress: `(percent, phase, detail)`.
+///
+/// `percent` is `0..=100`, or `-1` when the step cannot be measured (the DWG →
+/// DXF conversion — LibreDWG reports nothing and the DXF size is unknown up
+/// front, so the UI shows an indeterminate bar with the bytes written so far).
+/// Phases: `"convert"`, `"parse"`, `"build"`.
+pub type Reporter<'a> = &'a dyn Fn(f32, &'static str, &str);
+
 /// Load a `.dxf` / `.dwg` drawing into `(SceneMeta, geometry_blob)`.
 pub fn load(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
+    load_with(path, &|_, _, _| {})
+}
+
+/// Same as `load`, but reports progress through `report` so the UI can show a
+/// real bar instead of a spinner.
+pub fn load_with(path: &Path, report: Reporter) -> Result<(SceneMeta, Vec<u8>), String> {
     let md = std::fs::metadata(path).map_err(|e| format!("无法读取文件: {e}"))?;
     if md.len() > MAX_DRAWING_MIB * 1024 * 1024 {
         return Err(format!(
@@ -38,12 +52,19 @@ pub fn load(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
     match ext.as_deref() {
         Some("dxf") => {
             let t0 = Instant::now();
+            report(2.0, "build", "");
             let text = read_text(path)?;
-            let (mut meta, geometry) = dxf_ascii::parse_and_build(&text, 0, false, 0)?;
+            let (mut meta, geometry) = dxf_ascii::parse_and_build_with_progress(
+                &text,
+                0,
+                false,
+                0,
+                &|p| report(5.0 + p * 90.0, "parse", ""),
+            )?;
             meta.parse_ms = t0.elapsed().as_millis() as u64;
             Ok((meta, geometry))
         }
-        Some("dwg") => parse_dwg(path),
+        Some("dwg") => parse_dwg(path, report),
         other => Err(format!(
             "不支持的文件格式: {}",
             other
@@ -88,13 +109,25 @@ fn read_text(path: &Path) -> Result<String, String> {
 }
 
 /// Resolve a LibreDWG CLI: a copy next to the executable wins (so a bundled
-/// sidecar is picked up), otherwise PATH.
+/// sidecar is picked up), otherwise PATH.  Windows installers place the
+/// declared bundle resources under `<install>/resources/libredwg/`, and a
+/// dev-mode checkout can point at `src-tauri/resources/libredwg/` via CWD.
 fn cli_bin(name: &str) -> PathBuf {
     let mut names = vec![name.to_string()];
     if cfg!(windows) {
         names.push(format!("{name}.exe"));
     }
+    let mut dirs: Vec<PathBuf> = Vec::new();
     if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
+        dirs.push(dir.clone());
+        // Tauri installs declared resources relative to the executable dir.
+        dirs.push(dir.join("resources").join("libredwg"));
+        dirs.push(dir.join("libredwg"));
+    }
+    // Dev-mode fallback relative to the project root / src-tauri.
+    dirs.push(PathBuf::from("src-tauri/resources/libredwg"));
+    dirs.push(PathBuf::from("resources/libredwg"));
+    for dir in &dirs {
         for n in &names {
             let p = dir.join(n);
             if p.is_file() {
@@ -105,7 +138,7 @@ fn cli_bin(name: &str) -> PathBuf {
     PathBuf::from(name)
 }
 
-fn parse_dwg(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
+fn parse_dwg(path: &Path, report: Reporter) -> Result<(SceneMeta, Vec<u8>), String> {
     static SEQ: AtomicU64 = AtomicU64::new(0);
     // dwg2dxf cannot write to stdout (`-o` requires exactly one input file), so
     // it goes through a uniquely named temp file that we delete right after.
@@ -120,23 +153,46 @@ fn parse_dwg(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
     // 加载态且无法取消。这里给 120s 上限，超时就杀掉并报错。
     let output = (|| -> Result<std::process::Output, String> {
         use std::sync::mpsc::channel;
-        let child = Command::new(cli_bin("dwg2dxf"))
-            .arg("-y")
-            .arg("-o")
-            .arg(&dxf_path)
-            .arg(path)
+        let mut cmd = Command::new(cli_bin("dwg2dxf"));
+        cmd.arg("-y").arg("-o").arg(&dxf_path).arg(path);
+        // dwg2dxf is a console program: without CREATE_NO_WINDOW every DWG load
+        // flashes a black terminal over the app for the whole conversion.
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        let child = cmd
             .spawn()
-            .map_err(|e| format!("启动 dwg2dxf 失败: {e}（需要 LibreDWG：brew install libredwg）"))?;
+            .map_err(|e| {
+                if cfg!(windows) {
+                    format!("启动 dwg2dxf 失败: {e}（安装包自带 LibreDWG，请重新安装本应用）")
+                } else {
+                    format!("启动 dwg2dxf 失败: {e}（需要 LibreDWG：brew install libredwg）")
+                }
+            })?;
         let (tx, rx) = channel();
         std::thread::spawn(move || {
             let _ = tx.send(child.wait_with_output());
         });
-        match rx.recv_timeout(std::time::Duration::from_secs(120)) {
-            Ok(Ok(out)) => Ok(out),
-            Ok(Err(e)) => Err(format!("读取 dwg2dxf 输出失败: {e}")),
-            Err(_) => {
-                let _ = std::fs::remove_file(&dxf_path);
-                Err("dwg2dxf 转换超时（120 秒），文件可能已损坏".to_string())
+        // Poll instead of one long recv_timeout: dwg2dxf writes the DXF
+        // progressively, so the growing file is a real signal to show the user
+        // (bytes written) even though the total is unknown.
+        let mut waited_ms = 0u64;
+        loop {
+            match rx.recv_timeout(std::time::Duration::from_millis(120)) {
+                Ok(Ok(out)) => break Ok(out),
+                Ok(Err(e)) => break Err(format!("读取 dwg2dxf 输出失败: {e}")),
+                Err(_) => {
+                    waited_ms += 120;
+                    if waited_ms >= 120_000 {
+                        let _ = std::fs::remove_file(&dxf_path);
+                        break Err("dwg2dxf 转换超时（120 秒），文件可能已损坏".to_string());
+                    }
+                    let written = std::fs::metadata(&dxf_path).map(|m| m.len()).unwrap_or(0);
+                    report(-1.0, "convert", &format!("{:.1} MB", written as f64 / 1_048_576.0));
+                }
             }
         }
     })()?;
@@ -164,12 +220,16 @@ fn parse_dwg(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
         }
     }
 
+    report(35.0, "parse", "");
     let t1 = Instant::now();
     let text = read_text(&dxf_path);
     let _ = std::fs::remove_file(&dxf_path); // best effort — the text is in memory now
     let text = text?;
 
-    let (mut meta, geometry) = dxf_ascii::parse_and_build(&text, 0, true, convert_ms)?;
+    let (mut meta, geometry) = dxf_ascii::parse_and_build_with_progress(&text, 0, true, convert_ms, &|p| {
+        report(35.0 + p * 60.0, "parse", "")
+    })?;
+    report(96.0, "build", "");
     meta.parse_ms = t1.elapsed().as_millis() as u64;
     Ok((meta, geometry))
 }

@@ -1,15 +1,28 @@
 use std::path::Path;
 
 use tauri::ipc::Response;
+use tauri::Emitter;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::drawing;
 use crate::model::encode_blob;
 
+/// Event name for load progress: `{ pct, phase, detail }`.
+const LOAD_PROGRESS: &str = "load-progress";
+
 #[tauri::command]
-pub async fn open_drawing(path: String) -> Result<Response, String> {
+pub async fn open_drawing(app: tauri::AppHandle, path: String) -> Result<Response, String> {
+    let sink = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let (meta, geometry) = drawing::load(Path::new(&path))?;
+        // A big DWG takes ~10 s; stream the phases so the UI can show a bar
+        // instead of a spinner (see `drawing::Reporter`).
+        let report = |pct: f32, phase: &'static str, detail: &str| {
+            let _ = sink.emit(
+                LOAD_PROGRESS,
+                serde_json::json!({ "pct": pct, "phase": phase, "detail": detail }),
+            );
+        };
+        let (meta, geometry) = drawing::load_with(Path::new(&path), &report)?;
         let meta_json = serde_json::to_string(&meta).map_err(|e| format!("序列化失败: {e}"))?;
         Ok(Response::new(encode_blob(&meta_json, &geometry)))
     })

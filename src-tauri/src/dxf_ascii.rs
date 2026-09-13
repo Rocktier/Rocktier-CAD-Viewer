@@ -22,8 +22,24 @@ pub fn parse_and_build(
     was_dwg: bool,
     convert_ms: u64,
 ) -> Result<(SceneMeta, Vec<u8>), String> {
+    parse_and_build_with_progress(input, parse_time_ms, was_dwg, convert_ms, &|_| {})
+}
+
+/// Same as `parse_and_build`, but reports parse progress as `0.0..=1.0`.
+///
+/// A 20 MB DXF is ~2.5 M lines and several seconds of work; without this the
+/// UI can only spin.  The callback is invoked at most every `PROGRESS_LINES`
+/// lines so it stays free on the hot path.
+pub fn parse_and_build_with_progress(
+    input: &str,
+    parse_time_ms: u64,
+    was_dwg: bool,
+    convert_ms: u64,
+    on_progress: &dyn Fn(f32),
+) -> Result<(SceneMeta, Vec<u8>), String> {
     let mut st = State::new();
-    st.parse(input);
+    st.parse(input, on_progress);
+    on_progress(1.0);
     st.finalize(parse_time_ms, was_dwg, convert_ms)
 }
 
@@ -380,7 +396,7 @@ impl State {
         append_tri(&mut lay.tris[li], a, b, c, cr, cg, cb, ca);
     }
 
-    fn parse(&mut self, input: &str) {
+    fn parse(&mut self, input: &str, on_progress: &dyn Fn(f32)) {
         // TABLES/LAYER, LTYPE and BLOCKS are needed up front: layer colours and
         // linetypes when the first entity referencing a layer is parsed, blocks
         // on every INSERT, dashes for every dashed entity.
@@ -413,12 +429,22 @@ impl State {
             || input.contains("\nVIEWPORT\n");
 
         let lines: Vec<&str> = input.lines().collect();
+        let total = lines.len().max(1) as f32;
+        // Report at most every PROGRESS_LINES lines — a 2.5 M-line DXF would
+        // otherwise spend more time calling back than parsing.
+        const PROGRESS_LINES: usize = 100_000;
+        let mut next_report = PROGRESS_LINES;
         let mut i = 0usize;
         let mut in_entities = false;
         let mut current_entity: Option<&str> = None;
         let mut buf: Vec<(i32, String)> = Vec::new();
+        on_progress(0.02);
 
         while i + 1 < lines.len() {
+            if i >= next_report {
+                on_progress((i as f32 / total).min(1.0));
+                next_report = i + PROGRESS_LINES;
+            }
             let code_line = lines[i].trim();
             let value_line = lines[i + 1].trim_end_matches('\r').trim_start();
             i += 2;
@@ -1499,7 +1525,13 @@ impl State {
         let meta = SceneMeta {
             layers: self.layers.iter().map(|l| LayerInfo {
                 name: l.name.clone(), r: l.r, g: l.g, b: l.b,
-                auto: l.auto, off: l.off,
+                auto: l.auto,
+                // "Defpoints" is AutoCAD's non-plotting internals layer —
+                // revision clouds get parked there, and showing them reads as
+                // mystery arcs around the plan.  Start hidden (the layer stays
+                // in the panel, one click reveals it), matching AutoCAD's
+                // never-plot convention.
+                off: l.off || l.name.eq_ignore_ascii_case("defpoints"),
             }).collect(),
             layouts,
             texts: self.texts,

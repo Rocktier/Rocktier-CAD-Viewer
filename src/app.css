@@ -416,6 +416,34 @@ body {
   animation: spin 0.9s linear infinite;
 }
 
+.progress {
+  width: 220px;
+  height: 6px;
+  margin: 0 auto 16px;
+  background: var(--border);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--red);
+  border-radius: 100px;
+  transition: width 0.15s linear;
+}
+
+.overlay-pct {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text3);
+  margin-top: 8px;
+}
+
+.overlay-detail {
+  font-family: var(--mono);
+  color: var(--text3);
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

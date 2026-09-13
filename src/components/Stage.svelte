@@ -24,9 +24,26 @@
     {#if app.loading}
       <div class="overlay">
         <div class="overlay-card">
-          <div class="spinner"></div>
+          {#if app.progress.pct >= 0}
+            <div
+              class="progress"
+              role="progressbar"
+              aria-valuenow={Math.round(app.progress.pct)}
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <div class="progress-fill" style="width:{app.progress.pct}%"></div>
+            </div>
+          {:else}
+            <div class="spinner"></div>
+          {/if}
           <div class="overlay-title">{app.fileName || "…"}</div>
-          <div class="overlay-msg">{app.loadingMsg}</div>
+          <div class="overlay-msg">
+            {app.loadingMsg}{#if app.progress.detail}<span class="overlay-detail"> · {app.progress.detail}</span>{/if}
+          </div>
+          {#if app.progress.pct >= 0}
+            <div class="overlay-pct">{Math.round(app.progress.pct)}%</div>
+          {/if}
         </div>
       </div>
     {/if}

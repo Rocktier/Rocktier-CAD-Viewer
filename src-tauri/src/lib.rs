@@ -15,6 +15,12 @@ use tauri::{Emitter, Manager};
 #[derive(Default)]
 struct OpenedFiles(Mutex<Vec<String>>);
 
+/// 启动期到达的图纸队列（tao#1235：macOS 冷启动"打开方式"的
+/// application:openURLs: 早于 setup/托管状态直达回调，`try_state` 那时
+/// 拿不到任何东西——必须在进程级静态里排队，setup 后再搬进托管状态。
+/// Chromium 的 `_startupComplete` 同款思路）。
+static PENDING_OPEN: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
 fn looks_like_drawing(path: &str) -> bool {
     let lower = path.to_ascii_lowercase();
     lower.ends_with(".dxf") || lower.ends_with(".dwg")
@@ -28,6 +34,11 @@ fn push_opened_files(app: &tauri::AppHandle, paths: Vec<String>) {
     if paths.is_empty() {
         return;
     }
+    // 冷启动：托管状态尚不存在，只能进进程级队列，setup 后搬运。
+    if let Ok(mut pending) = PENDING_OPEN.lock() {
+        pending.extend(paths.iter().cloned());
+    }
+    // 热启动：托管状态与前端监听都在，直接入队 + 送达。
     if let Some(state) = app.try_state::<OpenedFiles>() {
         if let Ok(mut queued) = state.0.lock() {
             queued.extend(paths.iter().cloned());
@@ -71,6 +82,21 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(OpenedFiles::default())
+        .setup(|app| {
+            // tao#1235：把冷启动队列里的图纸搬进托管状态（此刻窗口与
+            // 前端尚未就绪，前端挂载后会通过 opened_files 命令拉走）。
+            let queued: Vec<String> = PENDING_OPEN
+                .lock()
+                .expect("PENDING_OPEN poisoned")
+                .drain(..)
+                .collect();
+            if let Some(state) = app.try_state::<OpenedFiles>() {
+                if let Ok(mut slot) = state.0.lock() {
+                    slot.extend(queued);
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::open_drawing,
             commands::open_url,

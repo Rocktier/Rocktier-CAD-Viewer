@@ -796,3 +796,35 @@ body {
   color: var(--text3);
   line-height: 1.5;
 }
+
+/* Paper-space layout tabs — only rendered when a drawing has sheets. */
+.layout-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 46vw;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.layout-tabs::-webkit-scrollbar {
+  display: none;
+}
+.layout-tab {
+  font: inherit;
+  font-family: var(--mono);
+  color: var(--text3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.layout-tab:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+.layout-tab.active {
+  color: var(--text);
+  border-color: var(--red);
+}

@@ -22,7 +22,8 @@
 
   let raf = 0;
   let ro: ResizeObserver | null = null;
-  let fitRequested = false;
+  /** Pending fit: false = none, otherwise which box to use. */
+  let fitRequested: false | "all" | "core" = false;
   let pending: { x: number; y: number } | null = null;
   let cursorWorld: { x: number; y: number } | null = null;
   let dragging = false;
@@ -46,10 +47,18 @@
   function draw() {
     raf = 0;
     if (fitRequested) {
+      const mode = fitRequested;
       fitRequested = false;
       const lay = app.scene?.meta.layouts[app.activeLayout];
       if (lay) {
-        cam.fit(lay.min_x, lay.min_y, lay.max_x, lay.max_y);
+        // "core" skips the far-flung outliers (a legend parked off the sheet,
+        // a coordinate blip) that would otherwise shrink the whole plan.
+        // Never implicit: the user asks for it.
+        if (mode === "core") {
+          cam.fit(lay.core_min_x, lay.core_min_y, lay.core_max_x, lay.core_max_y);
+        } else {
+          cam.fit(lay.min_x, lay.min_y, lay.max_x, lay.max_y);
+        }
         app.zoomPct = 100;
       }
     }
@@ -122,7 +131,7 @@
     const s = app.scene;
     if (s) {
       renderer.uploadScene(s);
-      fitRequested = true;
+      fitRequested = "all";
       requestDraw();
     }
   });
@@ -131,7 +140,7 @@
   $effect(() => {
     void app.activeLayout;
     if (app.scene) {
-      fitRequested = true;
+      fitRequested = "all";
       requestDraw();
     }
   });
@@ -140,7 +149,16 @@
   $effect(() => {
     void app.fitTick;
     if (app.scene) {
-      fitRequested = true;
+      fitRequested = "all";
+      requestDraw();
+    }
+  });
+
+  // "Fit content": same view, minus the outliers.
+  $effect(() => {
+    void app.fitCoreTick;
+    if (app.scene) {
+      fitRequested = "core";
       requestDraw();
     }
   });
@@ -291,7 +309,12 @@
       requestDraw();
     } else if (e.key === "f" || e.key === "F") {
       if (app.scene) {
-        fitRequested = true;
+        fitRequested = "all";
+        requestDraw();
+      }
+    } else if (e.key === "c" || e.key === "C") {
+      if (app.scene) {
+        fitRequested = "core";
         requestDraw();
       }
     }

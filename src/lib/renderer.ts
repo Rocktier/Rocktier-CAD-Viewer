@@ -29,6 +29,8 @@ const STRIDE = 12; // f32 x, f32 y, u8 r,g,b,a
 interface LayoutBuffers {
   lines: WebGLBuffer | null;
   points: WebGLBuffer | null;
+  tris: WebGLBuffer | null;
+  masks: WebGLBuffer | null;
 }
 
 export interface DrawOptions {
@@ -120,6 +122,8 @@ export class Renderer {
     for (const b of this.buffers.values()) {
       this.gl?.deleteBuffer(b.lines);
       this.gl?.deleteBuffer(b.points);
+      this.gl?.deleteBuffer(b.tris);
+      this.gl?.deleteBuffer(b.masks);
     }
     this.buffers.clear();
     this.uploadedScene = null;
@@ -158,6 +162,8 @@ export class Renderer {
     for (const b of this.buffers.values()) {
       gl.deleteBuffer(b.lines);
       gl.deleteBuffer(b.points);
+      gl.deleteBuffer(b.tris);
+      gl.deleteBuffer(b.masks);
     }
     this.buffers.clear();
     this.uploadedScene = scene;
@@ -167,6 +173,8 @@ export class Renderer {
       const mk = (): LayoutBuffers => ({
         lines: gl.createBuffer(),
         points: gl.createBuffer(),
+        tris: gl.createBuffer(),
+        masks: gl.createBuffer(),
       });
       const bufs = mk();
       const upload = (buf: WebGLBuffer | null, offset: number, len: number) => {
@@ -180,6 +188,8 @@ export class Renderer {
       };
       upload(bufs.lines, layout.lines_offset, layout.lines_len);
       upload(bufs.points, layout.points_offset, layout.points_len);
+      upload(bufs.tris, layout.tris_offset, layout.tris_len);
+      upload(bufs.masks, layout.masks_offset, layout.masks_len);
       this.buffers.set(i, bufs);
     });
   }
@@ -226,9 +236,18 @@ export class Renderer {
       gl.drawArrays(mode, Math.floor(r.offset / STRIDE), count);
     };
 
-    // Hairlines first, then points.
+    // Fills first (they are the background of a drawing), then hairlines,
+    // then points.
     // Buffer data is already the layout's sub-region, so the drawArrays
     // offset is relative to that sub-buffer — do NOT add layout.*_offset.
+    if (layout.tris_len > 0) {
+      gl.uniform1f(this.uPoint, 1);
+      bind(bufs.tris);
+      for (const r of layout.tri_ranges) {
+        if (hidden.has(r.layer)) continue;
+        drawRange(gl.TRIANGLES, r, 3);
+      }
+    }
     if (layout.lines_len > 0) {
       gl.uniform1f(this.uPoint, 1);
       bind(bufs.lines);
@@ -243,6 +262,17 @@ export class Renderer {
       for (const r of layout.point_ranges) {
         if (hidden.has(r.layer)) continue;
         drawRange(gl.POINTS, r);
+      }
+    }
+    // WIPEOUT masks go last and use the background colour: their whole job is
+    // to hide whatever was drawn before them.
+    if (layout.masks_len > 0) {
+      gl.uniform1f(this.uPoint, 1);
+      gl.uniform3f(this.uAuto, br / 255, bg / 255, bb / 255);
+      bind(bufs.masks);
+      for (const r of layout.mask_ranges) {
+        if (hidden.has(r.layer)) continue;
+        drawRange(gl.TRIANGLES, r, 3);
       }
     }
   }

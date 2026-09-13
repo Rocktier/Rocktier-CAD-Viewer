@@ -39,7 +39,10 @@ export const app = $state({
   aboutOpen: false,
   panelOpen: true,
   dragging: false,
+  /** Bumped to request "fit the whole drawing" (includes stray geometry). */
   fitTick: 0,
+  /** Bumped to request "fit the content" (trims far-flung outliers). */
+  fitCoreTick: 0,
   status: "",
   recents: [] as RecentFile[],
 });

@@ -53,16 +53,38 @@ pub fn load(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
     }
 }
 
-/// Read a drawing as text: strict UTF-8 first, then GBK.  Chinese drawings are
-/// routinely exported as ANSI/GBK, and a strict UTF-8 read would reject them
-/// outright; the geometry itself is ASCII either way.
+/// Read a drawing as text.
+///
+/// Three cases, in order of likelihood:
+///
+/// 1. Clean UTF-8 — take it.
+/// 2. UTF-8 with a *few* broken byte sequences.  LibreDWG splits multi-byte
+///    characters when it wraps a string at a line width, and its Windows build
+///    (compiled without iconv) writes UTF-8 while still declaring
+///    `$DWGCODEPAGE ANSI_936`.  Decoding the whole file as GBK here turns 23 MB
+///    of correct Chinese into mojibake — so the decoder measures the damage
+///    instead of trusting the declared code page.
+/// 3. Genuinely GBK (what a Chinese AutoCAD export looks like): nearly every
+///    non-ASCII byte is invalid UTF-8, so the same measurement sends it here.
+fn decode_drawing_text(bytes: &[u8]) -> String {
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return text.to_owned();
+    }
+    let lossy = String::from_utf8_lossy(bytes);
+    let damaged = lossy.chars().filter(|c| *c == '\u{FFFD}').count();
+    let non_ascii = lossy.chars().filter(|c| !c.is_ascii()).count();
+    // Under 1 % damaged ⇒ the file really is UTF-8 (a real GBK file lands
+    // around 60 %, so the margin is enormous either way).
+    if non_ascii > 0 && damaged * 100 < non_ascii {
+        return lossy.into_owned();
+    }
+    let (text, _, _) = encoding_rs::GBK.decode(bytes);
+    text.into_owned()
+}
+
 fn read_text(path: &Path) -> Result<String, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("无法读取文件: {e}"))?;
-    if let Ok(text) = std::str::from_utf8(&bytes) {
-        return Ok(text.to_owned());
-    }
-    let (text, _, _) = encoding_rs::GBK.decode(&bytes);
-    Ok(text.into_owned())
+    Ok(decode_drawing_text(&bytes))
 }
 
 /// Resolve a LibreDWG CLI: a copy next to the executable wins (so a bundled
@@ -122,4 +144,49 @@ fn parse_dwg(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
     let (mut meta, geometry) = dxf_ascii::parse_and_build(&text, 0, true, convert_ms)?;
     meta.parse_ms = t1.elapsed().as_millis() as u64;
     Ok((meta, geometry))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_drawing_text;
+
+    #[test]
+    fn clean_utf8_passes_through() {
+        let s = "0\nSECTION\n2\nENTITIES\n0\nTEXT\n1\n宋体\n";
+        assert_eq!(decode_drawing_text(s.as_bytes()), s);
+    }
+
+    #[test]
+    fn gbk_text_is_decoded_as_gbk() {
+        let (gbk, _, _) = encoding_rs::GBK.encode("窗下 1300");
+        let mut bytes = b"0\nTEXT\n1\n".to_vec();
+        bytes.extend_from_slice(&gbk);
+        bytes.extend_from_slice(b"\n");
+        let text = decode_drawing_text(&bytes);
+        assert!(text.contains("窗下"), "GBK drawing must decode, got {text:?}");
+    }
+
+    /// LibreDWG splits a multi-byte character when it wraps a string; the
+    /// Windows build has no iconv, so it writes UTF-8 under an ANSI_936
+    /// header.  A handful of broken sequences must not send the whole file
+    /// down the GBK path (that is what turned every Chinese label to mojibake).
+    #[test]
+    fn a_few_broken_sequences_stay_utf8() {
+        let mut bytes: Vec<u8> = Vec::new();
+        for _ in 0..200 {
+            bytes.extend_from_slice("建筑、结构".as_bytes());
+        }
+        let split = "窗下".as_bytes();
+        bytes.extend_from_slice(&split[..1]);
+        bytes.push(b'\n');
+        bytes.extend_from_slice(&split[1..]);
+        for _ in 0..200 {
+            bytes.extend_from_slice("建筑、结构".as_bytes());
+        }
+        let text = decode_drawing_text(&bytes);
+        assert!(
+            text.contains("建筑、结构"),
+            "the intact UTF-8 must survive one split character"
+        );
+    }
 }

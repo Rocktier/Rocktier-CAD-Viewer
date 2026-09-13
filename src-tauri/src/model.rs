@@ -52,12 +52,26 @@ pub struct LayoutMeta {
     pub min_y: f64,
     pub max_x: f64,
     pub max_y: f64,
+    /// Outlier-resistant box (0.5 %..99.5 % of vertices) — the target of the
+    /// "fit content" action.  Model space only; a sheet equals its own box.
+    pub core_min_x: f64,
+    pub core_min_y: f64,
+    pub core_max_x: f64,
+    pub core_max_y: f64,
     pub lines_offset: u32,
     pub lines_len: u32,
     pub points_offset: u32,
     pub points_len: u32,
+    /// Filled triangles (HATCH fills, SOLID/TRACE/3DFACE arrows).
+    pub tris_offset: u32,
+    pub tris_len: u32,
+    /// WIPEOUT masks — painted last, in the background colour.
+    pub masks_offset: u32,
+    pub masks_len: u32,
     pub line_ranges: Vec<RangeSpec>,
     pub point_ranges: Vec<RangeSpec>,
+    pub tri_ranges: Vec<RangeSpec>,
+    pub mask_ranges: Vec<RangeSpec>,
 }
 
 #[derive(Serialize, Debug)]

@@ -110,6 +110,16 @@
         </button>
         <button
           class="ghost"
+          title={t("fitContent")} aria-label={t("fitContent")}
+          onclick={() => app.fitCoreTick++}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+            <circle cx="12" cy="12" r="2.5" />
+          </svg>
+        </button>
+        <button
+          class="ghost"
           class:active={app.panelOpen}
           title={t("panel")} aria-label={t("panel")}
           onclick={() => (app.panelOpen = !app.panelOpen)}
@@ -140,7 +150,20 @@
 
   <footer class="statusbar">
     {#if app.scene}
-      <span class="status-item"><i class="status-red"></i>{app.scene.meta.layouts[app.activeLayout]?.name ?? "—"}</span>
+      {#if app.scene.meta.layouts.length > 1}
+        <span class="layout-tabs">
+          {#each app.scene.meta.layouts as lay, i}
+            <button
+              class="layout-tab"
+              class:active={app.activeLayout === i}
+              title={lay.name}
+              onclick={() => (app.activeLayout = i)}
+            >{lay.name}</button>
+          {/each}
+        </span>
+      {:else}
+        <span class="status-item"><i class="status-red"></i>{app.scene.meta.layouts[0]?.name ?? "—"}</span>
+      {/if}
       <span class="status-item">X {formatCoord(app.coords.x)}</span>
       <span class="status-item">Y {formatCoord(app.coords.y)}</span>
       <span class="grow"></span>

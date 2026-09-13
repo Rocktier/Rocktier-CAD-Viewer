@@ -18,8 +18,15 @@ name = "test_e2e"
 path = "src/bin/test_e2e.rs"
 required-features = ["e2e-test"]
 
+# Entity-coverage diagnostic / scene dump (see src/bin/coverage.rs).
+[[bin]]
+name = "coverage"
+path = "src/bin/coverage.rs"
+required-features = ["tools"]
+
 [features]
 e2e-test = []
+tools = []
 
 [dependencies]
 tauri = { version = "2", features = [] }

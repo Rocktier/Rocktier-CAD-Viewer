@@ -19,12 +19,25 @@ export interface LayoutMeta {
   min_y: number;
   max_x: number;
   max_y: number;
+  /** Outlier-resistant box (0.5 %..99.5 % of vertices) — the "fit content" target. */
+  core_min_x: number;
+  core_min_y: number;
+  core_max_x: number;
+  core_max_y: number;
   lines_offset: number;
   lines_len: number;
   points_offset: number;
   points_len: number;
+  /** Filled triangles: HATCH fills and SOLID/TRACE/3DFACE (dimension arrows). */
+  tris_offset: number;
+  tris_len: number;
+  /** WIPEOUT masks — painted last, in the background colour. */
+  masks_offset: number;
+  masks_len: number;
   line_ranges: RangeSpec[];
   point_ranges: RangeSpec[];
+  tri_ranges: RangeSpec[];
+  mask_ranges: RangeSpec[];
 }
 
 export interface TextItem {

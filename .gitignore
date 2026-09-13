@@ -20,6 +20,10 @@ src-tauri/Cargo.lock
 # Temp files produced by dwg2dxf conversion (never commit)
 rcv_dwg_*.dxf
 
+# Real drawings used for local regression — customer files, never commit
+testdata/real/*.dwg
+testdata/real/*.dxf
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -11,6 +11,31 @@ fn fixture(name: &str) -> PathBuf {
     p
 }
 
+/// A real drawing for the end-to-end check.
+///
+/// `$RCV_REAL_DWG` wins; otherwise the first `.dwg` in `testdata/real/` (a
+/// directory that is git-ignored because these are customer files).  Never a
+/// hard-coded home directory: this repository is public.
+fn real_dwg() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("RCV_REAL_DWG") {
+        let p = PathBuf::from(p);
+        return p.is_file().then_some(p);
+    }
+    let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    dir.push("../testdata/real");
+    let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.extension()
+                .map(|e| e.eq_ignore_ascii_case("dwg") || e.eq_ignore_ascii_case("dxf"))
+                .unwrap_or(false)
+        })
+        .collect();
+    found.sort();
+    found.into_iter().next()
+}
+
 struct FixtureStats {
     segments: u64,
     texts: u64,
@@ -89,8 +114,20 @@ fn main() {
     }
 
     // Test 8: paper-space entities (group 67 = 1) stay out of model space.
-    eprint!("  [T8] Paper space skipped ... ");
-    match test_paper_space_skipped() {
+    eprint!("  [T8] Paper space is its own layout ... ");
+    match test_paper_space_is_its_own_layout() {
+        Ok(()) => { eprintln!("OK"); pass += 1; }
+        Err(e) => { eprintln!("FAIL\n         {}", e); fail += 1; }
+    }
+
+    eprint!("  [T9] HATCH fill / dashes / ATTRIB ... ");
+    match test_hatch_dashes_and_attrib() {
+        Ok(()) => { eprintln!("OK"); pass += 1; }
+        Err(e) => { eprintln!("FAIL\n         {}", e); fail += 1; }
+    }
+
+    eprint!("  [T10] Paper-space VIEWPORT projection ... ");
+    match test_paper_viewport_projects_model() {
         Ok(()) => { eprintln!("OK"); pass += 1; }
         Err(e) => { eprintln!("FAIL\n         {}", e); fail += 1; }
     }
@@ -159,11 +196,21 @@ fn validate_fixture(file: &str, min_segs: u64) -> Result<FixtureStats, String> {
         if layout.points_len % 12 != 0 {
             return Err(format!("L{} points_len {} unaligned", li, layout.points_len));
         }
+        if layout.tris_len % 36 != 0 {
+            return Err(format!("L{} tris_len {} not a multiple of 3 vertices", li, layout.tris_len));
+        }
+        if layout.masks_len % 36 != 0 {
+            return Err(format!("L{} masks_len {} not a multiple of 3 vertices", li, layout.masks_len));
+        }
         let le = layout.lines_offset as u32 + layout.lines_len as u32;
         let pe = layout.points_offset as u32 + layout.points_len as u32;
-        if le as usize > geo_len || pe as usize > geo_len {
-            return Err(format!("L{} region overruns geo (le={}, pe={}, geo={})",
-                li, le, pe, geo_len));
+        let te = layout.tris_offset as u32 + layout.tris_len as u32;
+        let me = layout.masks_offset as u32 + layout.masks_len as u32;
+        if le as usize > geo_len || pe as usize > geo_len || te as usize > geo_len
+            || me as usize > geo_len
+        {
+            return Err(format!("L{} region overruns geo (le={}, pe={}, te={}, me={}, geo={})",
+                li, le, pe, te, me, geo_len));
         }
     }
 
@@ -196,6 +243,22 @@ fn test_range_containment() -> Result<(), String> {
                     return Err(format!("{name} L{} point range overflow: {} > {}", li, r.offset + r.len, lo.points_len));
                 }
             }
+            for r in &lo.tri_ranges {
+                if r.offset + r.len > lo.tris_len {
+                    return Err(format!("{name} L{} tri range overflow: {} > {}", li, r.offset + r.len, lo.tris_len));
+                }
+                if r.len % 36 != 0 {
+                    return Err(format!("{name} L{} tri range len {} unaligned", li, r.len));
+                }
+            }
+            for r in &lo.mask_ranges {
+                if r.offset + r.len > lo.masks_len {
+                    return Err(format!("{name} L{} mask range overflow: {} > {}", li, r.offset + r.len, lo.masks_len));
+                }
+                if r.len % 36 != 0 {
+                    return Err(format!("{name} L{} mask range len {} unaligned", li, r.len));
+                }
+            }
         }
     }
     Ok(())
@@ -217,54 +280,189 @@ fn test_contiguity() -> Result<(), String> {
     Ok(())
 }
 
-/// Group 67 = 1 marks paper-space geometry (title blocks, viewport frames).
-/// It must never be drawn over model space, nor folded into its extents —
-/// which would drag the fit-to-view over a whole sheet.
-fn test_paper_space_skipped() -> Result<(), String> {
+/// Paper space is a layout of its own: group 67 = 1 rows must never be drawn
+/// over model space nor folded into its extents — that would drag the plan's
+/// fit-to-view over a whole sheet.
+fn test_paper_space_is_its_own_layout() -> Result<(), String> {
     let dxf = "\
-  0
-SECTION
-  2
-ENTITIES
-  0
-LINE
-  8
-0
- 10
-0.0
- 20
-0.0
- 11
-10.0
- 21
-10.0
-  0
-LINE
-  8
-0
- 67
-1
- 10
-0.0
- 20
-0.0
- 11
-9999.0
- 21
-9999.0
-  0
-ENDSEC
-  0
-EOF
-";
+  0\nSECTION\n  2\nENTITIES\n\
+  0\nLINE\n  8\n0\n 10\n0.0\n 20\n0.0\n 11\n10.0\n 21\n10.0\n\
+  0\nLINE\n  8\n0\n 67\n1\n 10\n0.0\n 20\n0.0\n 11\n9999.0\n 21\n9999.0\n\
+  0\nTEXT\n  8\n0\n 67\n1\n 10\n5.0\n 20\n5.0\n 40\n2.0\n  1\nSHEET\n\
+  0\nENDSEC\n  0\nEOF\n";
     let (meta, _) = rocktier_cad_viewer_lib::dxf_ascii::parse_and_build(dxf, 0, false, 0)
         .map_err(|e| format!("parse: {e}"))?;
-    if meta.segments != 1 {
-        return Err(format!("expected 1 segment (model only), got {}", meta.segments));
+    if meta.layouts.len() != 2 {
+        return Err(format!("expected model + 1 sheet, got {} layouts", meta.layouts.len()));
     }
+    let model = &meta.layouts[0];
+    if model.max_x > 100.0 || model.max_y > 100.0 {
+        return Err(format!(
+            "paper geometry leaked into the model extents: x[{}, {}] y[{}, {}]",
+            model.min_x, model.max_x, model.min_y, model.max_y
+        ));
+    }
+    let sheet = &meta.layouts[1];
+    if sheet.max_x < 9000.0 {
+        return Err(format!(
+            "the sheet did not receive its own geometry: max_x={}",
+            sheet.max_x
+        ));
+    }
+    if !meta.texts.iter().any(|t| t.layout == 1) {
+        return Err("paper-space text was not tagged with its layout".into());
+    }
+    if meta.texts.iter().any(|t| t.layout == 0) {
+        return Err("paper-space text leaked into the model layout".into());
+    }
+    Ok(())
+}
+
+/// The three visual gaps that made real drawings look incomplete: solid HATCH
+/// fills, dashed linetypes, and block attribute values (ATTRIB) — while the
+/// attribute template (ATTDEF) must stay out of the picture.
+fn test_hatch_dashes_and_attrib() -> Result<(), String> {
+    let dxf = "\
+  0\nSECTION\n  2\nTABLES\n\
+  0\nTABLE\n  2\nLTYPE\n\
+  0\nLTYPE\n  2\nDASHED\n 70\n0\n  3\n__ __\n 72\n65\n 73\n2\n 40\n3.0\n 49\n2.0\n 49\n-1.0\n\
+  0\nENDTAB\n\
+  0\nTABLE\n  2\nLAYER\n\
+  0\nLAYER\n  2\nDASH\n 70\n0\n 62\n7\n  6\nDASHED\n\
+  0\nENDTAB\n  0\nENDSEC\n\
+  0\nSECTION\n  2\nENTITIES\n\
+  0\nLINE\n  8\nDASH\n 10\n0.0\n 20\n0.0\n 11\n10.0\n 21\n0.0\n\
+  0\nHATCH\n  8\n0\n 70\n1\n  2\nSOLID\n 91\n1\n 92\n3\n 72\n0\n 73\n1\n 93\n4\n\
+ 10\n0.0\n 20\n0.0\n 10\n10.0\n 20\n0.0\n 10\n10.0\n 20\n10.0\n 10\n0.0\n 20\n10.0\n 97\n0\n\
+  0\nATTRIB\n  8\n0\n  1\n标签A\n 10\n3.0\n 20\n3.0\n 40\n1.0\n 72\n0\n 74\n0\n\
+  0\nATTDEF\n  8\n0\n  1\n模板B\n 10\n4.0\n 20\n4.0\n 40\n1.0\n\
+  0\nHATCH\n  8\nPAT\n 70\n0\n  2\nANSI31\n 91\n1\n 92\n3\n 72\n0\n 73\n1\n 93\n4\n\
+ 10\n0.0\n 20\n0.0\n 10\n100.0\n 20\n0.0\n 10\n100.0\n 20\n100.0\n 10\n0.0\n 20\n100.0\n 97\n0\n\
+ 75\n0\n 76\n1\n 52\n0.0\n 41\n1.0\n 77\n0\n 78\n1\n 53\n45.0\n 43\n0.0\n 44\n0.0\n 45\n0.0\n 46\n10.0\n 79\n0\n 98\n0\n\
+  0\nWIPEOUT\n  8\n0\n 10\n0.0\n 20\n0.0\n 11\n1.0\n 21\n0.0\n 12\n0.0\n 22\n1.0\n\
+ 71\n2\n 91\n4\n 14\n0.0\n 24\n0.0\n 14\n20.0\n 24\n0.0\n 14\n20.0\n 24\n20.0\n 14\n0.0\n 24\n20.0\n\
+  0\nLEADER\n  8\n0\n 76\n3\n 10\n0.0\n 20\n0.0\n 10\n5.0\n 20\n5.0\n 10\n12.0\n 20\n9.0\n\
+  0\nENDSEC\n  0\nEOF\n";
+    let (meta, _) = rocktier_cad_viewer_lib::dxf_ascii::parse_and_build(dxf, 0, false, 0)
+        .map_err(|e| format!("parse: {e}"))?;
     let lay = &meta.layouts[0];
-    if lay.max_x > 100.0 {
-        return Err(format!("paper-space geometry leaked into extents: max_x={}", lay.max_x));
+
+    if lay.tris_len == 0 || lay.tri_ranges.is_empty() {
+        return Err("solid HATCH produced no triangles".into());
+    }
+    let dash_layer = meta
+        .layers
+        .iter()
+        .position(|l| l.name == "DASH")
+        .ok_or("layer DASH missing")?;
+    let dash_segs: u64 = lay
+        .line_ranges
+        .iter()
+        .filter(|r| r.layer as usize == dash_layer)
+        .map(|r| (r.len / 24) as u64)
+        .sum();
+    if dash_segs < 3 {
+        return Err(format!(
+            "a 10-unit line with a 2/1 dash pattern should break into >= 3 segments, got {dash_segs}"
+        ));
+    }
+    if !meta.texts.iter().any(|t| t.text.contains("标签A")) {
+        return Err("ATTRIB value was not rendered".into());
+    }
+    if meta.texts.iter().any(|t| t.text.contains("模板B")) {
+        return Err("ATTDEF template must not be drawn".into());
+    }
+
+    // Patterned hatch: 45° lines every 10 units across a 100x100 boundary.
+    let pat_layer = meta
+        .layers
+        .iter()
+        .position(|l| l.name == "PAT")
+        .ok_or("layer PAT missing")?;
+    let pat_segs: u64 = lay
+        .line_ranges
+        .iter()
+        .filter(|r| r.layer as usize == pat_layer)
+        .map(|r| (r.len / 24) as u64)
+        .sum();
+    if pat_segs < 8 {
+        return Err(format!(
+            "pattern hatch emitted {pat_segs} segments — boundary only, no pattern lines"
+        ));
+    }
+
+    // WIPEOUT: mask triangles in their own stream, drawn above the geometry.
+    if lay.masks_len == 0 || lay.mask_ranges.is_empty() {
+        return Err("WIPEOUT produced no mask geometry".into());
+    }
+
+    // LEADER: a polyline through its three vertices.
+    let leader_layer = meta
+        .layers
+        .iter()
+        .position(|l| l.name == "0")
+        .ok_or("layer 0 missing")?;
+    let leader_segs: u64 = lay
+        .line_ranges
+        .iter()
+        .filter(|r| r.layer as usize == leader_layer)
+        .map(|r| (r.len / 24) as u64)
+        .sum();
+    if leader_segs < 2 {
+        return Err(format!("LEADER did not draw its polyline ({leader_segs} segments)"));
+    }
+    Ok(())
+}
+
+
+/// A paper-space VIEWPORT projects model space onto the sheet: 12/22 is the
+/// view centre in model units, 45 the view height, 40/41 the window size in
+/// paper units.  Geometry outside the window must be clipped, or the sheet
+/// shows the whole plan spilling past its frame.
+fn test_paper_viewport_projects_model() -> Result<(), String> {
+    let text = load_fixture_text("08_paper_viewport.dxf")?;
+    let (meta, geometry) = rocktier_cad_viewer_lib::dxf_ascii::parse_and_build(&text, 0, false, 0)
+        .map_err(|e| format!("parse: {e}"))?;
+    if meta.layouts.len() != 2 {
+        return Err(format!("expected model + sheet, got {} layouts", meta.layouts.len()));
+    }
+    let sheet = &meta.layouts[1];
+    let model_layer = meta
+        .layers
+        .iter()
+        .position(|l| l.name == "MODEL")
+        .ok_or("MODEL layer missing")?;
+
+    // The sheet frame alone is 297 wide; the projected plan must stay inside
+    // the viewport window x ∈ [60, 240], y ∈ [45, 165] — without clipping the
+    // window edges would sit at x = 50 and x = 250.
+    let mut verts: Vec<(f32, f32)> = Vec::new();
+    for r in sheet.line_ranges.iter().filter(|r| r.layer as usize == model_layer) {
+        let start = sheet.lines_offset as usize + r.offset as usize;
+        let bytes = &geometry[start..start + r.len as usize];
+        for v in bytes.chunks_exact(12) {
+            verts.push((
+                f32::from_le_bytes([v[0], v[1], v[2], v[3]]),
+                f32::from_le_bytes([v[4], v[5], v[6], v[7]]),
+            ));
+        }
+    }
+    // Two of the four model edges cross the window (the other two lie outside
+    // it entirely and must be dropped), i.e. 2 clipped segments.
+    if verts.len() < 4 {
+        return Err(format!("model space was not projected into the viewport ({} vertices)", verts.len()));
+    }
+    for (x, y) in &verts {
+        if *x < 59.0 || *x > 241.0 || *y < 44.0 || *y > 166.0 {
+            return Err(format!("projected geometry escaped the viewport window at ({x}, {y})"));
+        }
+    }
+    // The title-block TEXT belongs to the sheet layout, not to model space.
+    if !meta.texts.iter().any(|t| t.layout == 1 && t.text.contains("SHEET")) {
+        return Err("sheet text did not land on the sheet layout".into());
+    }
+    if meta.texts.iter().any(|t| t.layout == 0) {
+        return Err("sheet text leaked into model space".into());
     }
     Ok(())
 }
@@ -521,10 +719,7 @@ EOF
 }
 
 fn test_real_dwg() -> Result<(), String> {
-    let dwg_path = PathBuf::from("/Users/danglei/Downloads/久裕设计-融侨华府定稿平面.dwg");
-    if !dwg_path.is_file() {
-        return Err("real DWG file not in Downloads".into());
-    }
+    let dwg_path = real_dwg().ok_or("no drawing in testdata/real (or $RCV_REAL_DWG)")?;
     // DWG → `dwg2dxf` → the very same parser the DXF path uses.
     let (meta, geometry) = rocktier_cad_viewer_lib::drawing::load(&dwg_path)
         .map_err(|e| format!("load real DWG: {e}"))?;

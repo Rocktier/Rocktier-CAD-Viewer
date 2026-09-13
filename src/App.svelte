@@ -74,14 +74,21 @@
       }),
     );
 
+    // 卸载标记：配合下面的 keep() 清理
+    let disposed = false;
+
     // Files opened before the UI existed (cold start) …
     invoke<string[]>("opened_files")
-      .then(openFirst)
+      .then((paths) => {
+        // 组件已卸载则丢弃结果：否则卸载后仍会触发打开
+        if (!disposed) openFirst(paths);
+      })
       .catch(() => {});
     // … and while it was already running.
     keep(listen<string[]>("opened", (e) => openFirst(e.payload)));
 
     return () => {
+      disposed = true;
       cancelled = true;
       clearTimeout(dragTimer);
       unlisteners.forEach((u) => u());

@@ -403,10 +403,14 @@ impl State {
 
         // Replaying model space into viewports costs a second copy of every raw
         // entity, so it is only paid for when a sheet actually uses one.
+        // 判据还要覆盖「ENTITIES 里带 67=1 的 VIEWPORT」这种情况：那时没有纸空间块，
+        // 旧判据下 model_ents 恒为空，视口只能画出空框。用一次文本粗扫兜住，
+        // 代价仅是这类图纸多保留一份原始实体。
         self.keep_raw = self
             .blocks
             .iter()
-            .any(|(n, e)| is_paper_block(n) && e.iter().any(|(t, _)| is_viewport(t)));
+            .any(|(n, e)| is_paper_block(n) && e.iter().any(|(t, _)| is_viewport(t)))
+            || input.contains("\nVIEWPORT\n");
 
         let lines: Vec<&str> = input.lines().collect();
         let mut i = 0usize;
@@ -891,6 +895,8 @@ impl State {
     /// ponytail: uniform in parameter, not arc length — re-parameterise by
     /// chord length only if a drawing's splines ever look visibly uneven.
     fn parse_spline(&mut self, buf: &[(i32, String)]) {
+        // 组码 71 的 degree 未校验：负/超大值会让 knots[k] 越界 panic，
+        // 而 release profile 是 panic="abort"，等于整个应用闪退。这里钳到合法区间。
         let degree = buf.iter().find(|(c, _)| *c == 71)
             .and_then(|(_, v)| v.parse::<i64>().ok())
             .unwrap_or(3) as i32;
@@ -899,6 +905,7 @@ impl State {
             .filter_map(|(_, v)| v.parse().ok()).collect();
         if ctrl.len() < 2 { return; }
         self.set_layer(buf);
+        let degree = degree.clamp(1, 32);
         let k = degree as usize;
         if knots.len() < ctrl.len() + k + 1 {
             // Knot vector doesn't match control count — fall back to the
@@ -1067,7 +1074,8 @@ impl State {
             if code != 91 {
                 continue;
             }
-            let paths = val.trim().parse::<usize>().unwrap_or(0);
+            // 与环内其它计数一样要限流：损坏文件里 91 可能是 4e9
+            let paths = val.trim().parse::<usize>().unwrap_or(0).min(4096);
             for _ in 0..paths {
                 if let Some(loop_pts) = cur.boundary_path() {
                     loops.push(loop_pts);
@@ -1123,7 +1131,8 @@ impl State {
         }
         if loops.len() == 1 {
             let pts = &loops[0];
-            if pts.len() < 3 || pts.len() > 20_000 {
+            // 耳切三角化是 O(n²)（凹多边形更差），2 万点会让图纸几分钟打不开
+            if pts.len() < 3 || pts.len() > 2_000 {
                 return;
             }
             let tris = triangulate(pts);
@@ -1344,6 +1353,9 @@ impl State {
         let mut poly = vec![p1, p2];
         if p4.0.is_finite() {
             poly.push(p4);
+        } else if p3.0.is_finite() {
+            // 三角形 SOLID 只写 10/11/12 三组坐标：没有 p4 时整个实体会被丢弃
+            poly.push(p3);
         }
         // A triangle-shaped SOLID repeats the last corner; skip the duplicate so
         // the fan does not emit a degenerate triangle.
@@ -2060,6 +2072,11 @@ fn point_in_tri(p: (f64, f64), a: (f64, f64), b: (f64, f64), c: (f64, f64)) -> b
 fn triangulate(poly: &[(f64, f64)]) -> Vec<[usize; 3]> {
     let n = poly.len();
     if n < 3 {
+        return Vec::new();
+    }
+    // 规模护栏：耳切对每个候选角都要扫剩余顶点，n 超过阈值时直接走调用方的
+    // 三角扇回退，避免大环把解析卡死。
+    if n > 2_000 {
         return Vec::new();
     }
     let mut idx: Vec<usize> = (0..n).collect();

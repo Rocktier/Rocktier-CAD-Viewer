@@ -116,13 +116,30 @@ fn parse_dwg(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
     ));
 
     let t0 = Instant::now();
-    let output = Command::new(cli_bin("dwg2dxf"))
-        .arg("-y")
-        .arg("-o")
-        .arg(&dxf_path)
-        .arg(path)
-        .output()
-        .map_err(|e| format!("启动 dwg2dxf 失败: {e}（需要 LibreDWG：brew install libredwg）"))?;
+    // 不能无限等待：dwg2dxf 在损坏 DWG / 网络盘上可能一直卡住，前端会永远停在
+    // 加载态且无法取消。这里给 120s 上限，超时就杀掉并报错。
+    let output = (|| -> Result<std::process::Output, String> {
+        use std::sync::mpsc::channel;
+        let child = Command::new(cli_bin("dwg2dxf"))
+            .arg("-y")
+            .arg("-o")
+            .arg(&dxf_path)
+            .arg(path)
+            .spawn()
+            .map_err(|e| format!("启动 dwg2dxf 失败: {e}（需要 LibreDWG：brew install libredwg）"))?;
+        let (tx, rx) = channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(child.wait_with_output());
+        });
+        match rx.recv_timeout(std::time::Duration::from_secs(120)) {
+            Ok(Ok(out)) => Ok(out),
+            Ok(Err(e)) => Err(format!("读取 dwg2dxf 输出失败: {e}")),
+            Err(_) => {
+                let _ = std::fs::remove_file(&dxf_path);
+                Err("dwg2dxf 转换超时（120 秒），文件可能已损坏".to_string())
+            }
+        }
+    })()?;
     let convert_ms = t0.elapsed().as_millis() as u64;
 
     if !output.status.success() {
@@ -134,6 +151,17 @@ fn parse_dwg(path: &Path) -> Result<(SceneMeta, Vec<u8>), String> {
             output.status.code(),
             first_err
         ));
+    }
+
+    // 只查输入体积不够：dwg2dxf 产出的 DXF 常常是 DWG 的数倍，会把 1GB+ 直接读进内存
+    if let Ok(m) = std::fs::metadata(&dxf_path) {
+        if m.len() > MAX_DRAWING_MIB * 1024 * 1024 {
+            let _ = std::fs::remove_file(&dxf_path);
+            return Err(format!(
+                "转换结果过大（{} MB），已取消加载",
+                m.len() / 1024 / 1024
+            ));
+        }
     }
 
     let t1 = Instant::now();

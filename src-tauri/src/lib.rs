@@ -35,7 +35,10 @@ fn push_opened_files(app: &tauri::AppHandle, paths: Vec<String>) {
         return;
     }
     // 冷启动：托管状态尚不存在，只能进进程级队列，setup 后搬运。
+    // 热启动时先把队列排空：队列只在 setup 里 drain 一次，不排则每打开
+    // 一个图纸就多残留一条（缓慢内存泄漏）。
     if let Ok(mut pending) = PENDING_OPEN.lock() {
+        pending.clear();
         pending.extend(paths.iter().cloned());
     }
     // 热启动：托管状态与前端监听都在，直接入队 + 送达。

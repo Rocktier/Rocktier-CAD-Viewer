@@ -163,7 +163,12 @@ export class Renderer {
   /** Uploads every layout's geometry to the GPU (idempotent per scene). */
   uploadScene(scene: Scene) {
     const gl = this.gl;
-    if (!gl) return;
+    if (!gl) {
+      // 上下文丢失期间也要记住场景：否则恢复时 uploadedScene 仍是 null，
+      // 恢复后 canvas 一片空白且没有任何错误提示。
+      this.uploadedScene = scene;
+      return;
+    }
     if (this.uploadedScene === scene) return;
     // Drop only the old geometry buffers.  A full `dispose()` here would also
     // delete the shader program and detach the context-loss listeners,

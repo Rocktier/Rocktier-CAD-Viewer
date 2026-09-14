@@ -211,7 +211,11 @@
       <span class="status-item">{t("texts")} {formatCount(app.scene.meta.text_count)}</span>
       <span class="status-item">{formatDuration(app.scene.meta.parse_ms + app.scene.meta.convert_ms)}{app.scene.meta.was_dwg ? " (dwg)" : ""}</span>
     {:else}
-      <span class="status-item"><i class="status-red"></i>{t("offline")}</span>
+      {#if app.loading}
+        <span class="status-item"><i class="status-red"></i>{t("opening")}{#if app.progress.pct >= 0} {Math.round(app.progress.pct)}%{/if}</span>
+      {:else}
+        <span class="status-item"><i class="status-red"></i>{t("offline")}</span>
+      {/if}
       <span class="grow"></span>
       <span class="status-item">v{VERSION}</span>
     {/if}

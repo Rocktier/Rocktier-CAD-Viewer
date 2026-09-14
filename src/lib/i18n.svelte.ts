@@ -60,6 +60,7 @@ const zh: Dict = {
   langLabel: "语言",
   panel: "图层面板",
   oneFileOnly: "一次只能打开一个文件，已打开首个",
+  opening: "正在打开…",
 };
 
 const en: Dict = {
@@ -120,6 +121,7 @@ const en: Dict = {
   langLabel: "Language",
   panel: "Layers panel",
   oneFileOnly: "One file at a time — opened the first",
+  opening: "Opening…",
 };
 
 const dicts: Record<"zh" | "en", Dict> = { zh, en };

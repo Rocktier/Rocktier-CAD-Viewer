@@ -396,6 +396,20 @@ body {
   z-index: 30;
 }
 
+/* Loading hint: replaces the old full-screen blocking overlay.  The container
+   is transparent and click-through, so the rest of the app shell (header,
+   status bar, panels) stays visible and interactive while the drawing opens
+   in the background — the user sees the interface immediately, not a spinner. */
+.load-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  pointer-events: none;
+}
+
 .overlay-card {
   background: var(--bg2);
   border: 1px solid var(--border);

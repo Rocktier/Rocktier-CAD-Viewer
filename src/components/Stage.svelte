@@ -21,8 +21,8 @@
       <div class="drop-hint"><span style="font-family:var(--mono);font-size:0.85rem;color:var(--text2)">{t("dropHere")}</span></div>
     {/if}
 
-    {#if app.loading}
-      <div class="overlay">
+    {#if app.loading && !app.scene}
+      <div class="load-hint">
         <div class="overlay-card">
           {#if app.progress.pct >= 0}
             <div

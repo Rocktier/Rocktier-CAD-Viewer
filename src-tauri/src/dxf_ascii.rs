@@ -2562,4 +2562,24 @@ mod tests {
         assert_eq!(&bytes[8..12], &[255, 255, 0, 255]); // ACI 2 literal
         assert_eq!(&bytes[8 + 24..8 + 28], &[0, 0, 0, 0]); // ACI 7 → auto
     }
+
+    /// Group code 71 (degree) is clamped and a mismatched knot vector falls
+    /// back to the control polygon, so a malformed SPLINE must degrade
+    /// gracefully instead of indexing `knots[k]` out of bounds — release is
+    /// panic=abort, which would take the whole app down.
+    #[test]
+    fn malformed_spline_does_not_panic() {
+        // Negative degree, too few knots.
+        let neg_degree = "0\nSECTION\n2\nENTITIES\n0\nSPLINE\n8\nL1\n71\n-5\n10\n0\n20\n0\n10\n1\n20\n1\n0\nENDSEC\n0\nEOF\n";
+        // Absurdly large degree.
+        let huge_degree = "0\nSECTION\n2\nENTITIES\n0\nSPLINE\n8\nL1\n71\n99999\n10\n0\n20\n0\n10\n1\n20\n1\n0\nENDSEC\n0\nEOF\n";
+        // Legal degree but the knot vector does not match the control count.
+        let knot_mismatch = "0\nSECTION\n2\nENTITIES\n0\nSPLINE\n8\nL1\n71\n3\n10\n0\n20\n0\n10\n1\n20\n1\n40\n0\n40\n1\n0\nENDSEC\n0\nEOF\n";
+        for dxf in [neg_degree, huge_degree, knot_mismatch] {
+            assert!(
+                parse_and_build(dxf, 0, false, 0).is_ok(),
+                "malformed SPLINE must not panic or error"
+            );
+        }
+    }
 }

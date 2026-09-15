@@ -4,6 +4,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { open } from "@tauri-apps/plugin-dialog";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import BrandMark from "./components/BrandMark.svelte";
   import Stage from "./components/Stage.svelte";
   import LayersPanel from "./components/LayersPanel.svelte";
   import AboutDialog from "./components/AboutDialog.svelte";
@@ -99,7 +100,7 @@
 <div class="app">
   <header class="app-head">
     <div class="brand">
-      <img class="brand-mark" src="/icon.svg" alt="" aria-hidden="true" />
+      <BrandMark />
       <span class="brand-word">Rocktier CAD Viewer<i></i></span>
     </div>
     <span class="brand-sub">DXF · DWG · OFFLINE</span>

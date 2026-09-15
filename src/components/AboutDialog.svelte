@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import BrandMark from "./BrandMark.svelte";
   import { app } from "../lib/state.svelte";
   import { t } from "../lib/i18n.svelte";
 
@@ -29,7 +30,7 @@
     <div class="modal" role="dialog" aria-modal="true" aria-label={t("about")} tabindex="0" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
       <button class="ghost modal-close" onclick={() => (app.aboutOpen = false)} aria-label={t("close")}>✕</button>
       <div class="about-brand">
-        <img class="brand-mark" src="/icon.svg" alt="" aria-hidden="true" />
+        <BrandMark />
         <div>
           <div class="about-name">Rocktier CAD Viewer</div>
           <div class="about-ver">v{__APP_VERSION__} · Tauri + WebGL</div>

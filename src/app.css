@@ -98,6 +98,23 @@ body {
   color: var(--text);
 }
 
+/* Letter mark — the app-icon tile: dark in both themes so it matches the Dock
+   icon; the hairline border keeps it from vanishing on the near-black header. */
+.brand-mark .brand-tile {
+  fill: #0a0a0a;
+  stroke: var(--border-hover);
+  stroke-width: 1;
+}
+
+.brand-mark .brand-letters {
+  fill: #ffffff;
+  font-family: var(--font);
+}
+
+.brand-mark .brand-pip {
+  fill: var(--red);
+}
+
 .brand-word {
   font-weight: 700;
   letter-spacing: -0.02em;

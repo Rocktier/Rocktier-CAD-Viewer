@@ -4,7 +4,7 @@
   import { t } from "../lib/i18n.svelte";
 
   const WEBSITE = "https://rocktier.com/";
-  const FEEDBACK = "mailto:hello@rocktier.studio";
+  const FEEDBACK = "mailto:hello@rocktier.com";
 
   /** Hand the link to the OS; the webview itself must not navigate. */
   async function openExternal(e: MouseEvent, url: string) {

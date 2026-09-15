@@ -69,7 +69,7 @@
           case "fit-core": app.fitCoreTick++; break;
           case "panel": app.panelOpen = !app.panelOpen; break;
           case "website": void invoke("open_url", { url: "https://rocktier.com/" }).catch(() => {}); break;
-          case "feedback": void invoke("open_url", { url: "mailto:hello@rocktier.studio" }).catch(() => {}); break;
+          case "feedback": void invoke("open_url", { url: "mailto:hello@rocktier.com" }).catch(() => {}); break;
         }
       }),
     );

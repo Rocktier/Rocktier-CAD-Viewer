@@ -7,7 +7,7 @@
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 
 pub const WEBSITE: &str = "https://rocktier.com/";
-pub const FEEDBACK: &str = "mailto:hello@rocktier.studio";
+pub const FEEDBACK: &str = "mailto:hello@rocktier.com";
 
 pub fn build(app: &tauri::AppHandle, lang: &str) -> tauri::Result<()> {
     let zh = lang.starts_with("zh");

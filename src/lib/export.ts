@@ -32,6 +32,8 @@ export interface ExportOptions {
   theme: ExportTheme;
   factor: number;
   view: ViewState;
+  /** Turn upside-down text upright — mirrors the live viewport setting. */
+  upright: boolean;
   /** Source drawing name, used for the suggested file name. */
   fileName: string;
 }
@@ -122,6 +124,7 @@ export function renderScene(o: ExportOptions): RenderedExport {
         dpr: 1,
         viewport: { w, h },
         mono: pal.mono,
+        upright: o.upright,
       });
     }
 

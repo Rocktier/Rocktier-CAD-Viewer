@@ -10,6 +10,37 @@ export interface TextDrawOptions {
   viewport?: { w: number; h: number };
   /** Draw every label in `autoColor` — the print/export mode. */
   mono?: boolean;
+  /**
+   * Turn upside-down text upright (default in the UI).  Drawings routinely
+   * hold unit blocks inserted with a 180° rotation, so half the room labels
+   * read flipped — AutoCAD shows them exactly like that, but a viewer that
+   * cannot rotate the sheet should still let people read what they see.
+   */
+  upright?: boolean;
+}
+
+/**
+ * Normalize an upside-down rotation to a readable one.
+ *
+ * Returns the adjusted rotation plus the alignment flags with their axes
+ * swapped, so the flipped text still occupies the same box around the anchor
+ * (a 180° turn about the anchor alone would mirror the box to the other
+ * side).  Vertical text (90°/270°) is left alone — dimension text reads
+ * bottom-up on one side of a dimension line and top-down on the other, by
+ * convention.
+ */
+export function uprightRot(
+  rot: number,
+  ha: number,
+  va: number,
+): { rot: number; ha: number; va: number } {
+  const n = ((rot % 360) + 360) % 360;
+  if (n <= 90.001 || n >= 269.999) return { rot, ha, va };
+  return {
+    rot: n - 180,
+    ha: ha === 2 ? 0 : ha,
+    va: va === 3 ? 1 : va === 1 ? 3 : va,
+  };
 }
 
 /**
@@ -79,25 +110,29 @@ export function drawTexts(
       opts.mono || item.a === 0 ? opts.autoColor : `rgb(${item.r},${item.g},${item.b})`;
     ctx.fillStyle = fill;
     ctx.font = `${hPx.toFixed(2)}px -apple-system, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif`;
-    ctx.textAlign = item.ha === 1 ? "center" : item.ha === 2 ? "right" : "left";
+
+    let { ha, va } = item;
+    let rot = item.rot;
+    if (opts.upright) ({ rot, ha, va } = uprightRot(item.rot, item.ha, item.va));
+    ctx.textAlign = ha === 1 ? "center" : ha === 2 ? "right" : "left";
 
     ctx.save();
     ctx.translate(p.sx, p.sy);
-    if (item.rot) ctx.rotate((-item.rot * Math.PI) / 180);
+    if (rot) ctx.rotate((-rot * Math.PI) / 180);
 
     for (let i = 0; i < lines.length; i++) {
       const n = lines.length;
       let baseline: CanvasTextBaseline;
       let dy: number;
-      if (item.va === 1) {
+      if (va === 1) {
         // bottom: stack grows upward
         baseline = "bottom";
         dy = -(n - 1 - i) * lineH;
-      } else if (item.va === 2) {
+      } else if (va === 2) {
         // middle: block centered on anchor
         baseline = "middle";
         dy = (i - (n - 1) / 2) * lineH;
-      } else if (item.va === 3) {
+      } else if (va === 3) {
         // top: stack grows downward
         baseline = "top";
         dy = i * lineH;

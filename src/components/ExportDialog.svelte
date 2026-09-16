@@ -24,6 +24,7 @@
           theme,
           factor,
           view: app.camera,
+          upright: app.uprightText,
           fileName: app.fileName,
         },
         format,

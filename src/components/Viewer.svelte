@@ -93,6 +93,7 @@
         autoColor: th.autoCss,
         hidden: app.hidden,
         dpr: dpr(),
+        upright: app.uprightText,
       });
       if (app.tool === "measure") {
         drawMeasure(ctx, cam, {

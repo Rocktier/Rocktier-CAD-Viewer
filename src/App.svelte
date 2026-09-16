@@ -9,7 +9,7 @@
   import LayersPanel from "./components/LayersPanel.svelte";
   import AboutDialog from "./components/AboutDialog.svelte";
   import ExportDialog from "./components/ExportDialog.svelte";
-  import { app, openFile, setStatus, setLang } from "./lib/state.svelte";
+  import { app, openFile, setStatus, setLang, setUprightText } from "./lib/state.svelte";
   import { t } from "./lib/i18n.svelte";
   import { formatCoord, formatCount, formatDuration } from "./lib/format";
 
@@ -151,6 +151,17 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
             <circle cx="12" cy="12" r="2.5" />
+          </svg>
+        </button>
+        <button
+          class="ghost"
+          class:active={app.uprightText}
+          title={t("uprightText")} aria-label={t("uprightText")}
+          onclick={() => setUprightText(!app.uprightText)}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m5 7 7 10m0-10-7 10M6.2 14h11.6" />
+            <path d="M17 3v4m0 0 1.8-1.8M17 7l-1.8-1.8" />
           </svg>
         </button>
         <button

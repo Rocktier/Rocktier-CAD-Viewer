@@ -25,6 +25,8 @@ function initialLang(): "zh" | "en" {
 
 export const app = $state({
   lang: initialLang(),
+  /** Turn upside-down text upright for readability ("按图纸原样" turns it off). */
+  uprightText: stored("rcv.upright") !== "0",
   loading: false,
   loadingMsg: "",
   /** Live load progress from the Rust side: `pct` < 0 means indeterminate. */
@@ -61,6 +63,15 @@ export function setLang(lang: "zh" | "en") {
     /* storage unavailable */
   }
   document.documentElement.lang = lang;
+}
+
+export function setUprightText(on: boolean) {
+  app.uprightText = on;
+  try {
+    localStorage.setItem("rcv.upright", on ? "1" : "0");
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 // ---------------------------------------------------------------- recents

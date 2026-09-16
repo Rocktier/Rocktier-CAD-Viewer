@@ -4,31 +4,24 @@
 
 ---
 
-## 0. ⚠️ 提交前必须对齐的两件事（首次提交最容易卡这里）
+## 0. 提交前必须对齐的两件事（首次提交最容易卡这里）
 
-### 0.1 包标识必须与 Partner Center **完全一致**
+### 0.1 包标识已与 Partner Center 对齐 ✅
 
-在 Partner Center 建好产品后，进「产品 → 产品标识」会看到三项，其中前两项必须原样抄进代码，**否则上传 MSIX 直接报标识不匹配**：
+Partner Center「产品标识」实测值（2026-09-16 核对），已逐项写入代码：
 
-| Partner Center 字段 | 要写进哪里 |
-|---|---|
-| `Package/Identity/Name`（形如 `Rocktier.RocktierCADViewer`，微软分配） | `src-tauri/tauri.conf.json` 的 `identifier` |
-| `Package/Identity/Publisher`（形如 `CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7`） | `src-tauri/gen/windows/bundle.config.json` 的 `publisher` |
-| `Package/Properties/PublisherDisplayName` | 同上配置的 `publisherDisplayName` |
+| Partner Center 字段 | 值 | 写入位置 | 状态 |
+|---|---|---|---|
+| `Package/Identity/Name` | `Rocktier.RocktierCADViewer` | `src-tauri/tauri.conf.json` → `identifier` | ✅ 已对齐 |
+| `Package/Identity/Publisher` | `CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7` | `src-tauri/gen/windows/bundle.config.json` → `publisher` | ✅ 本来就一致 |
+| `Package/Properties/PublisherDisplayName` | `Rocktier` | 同上 → `publisherDisplayName` | ✅ 本来就一致 |
+| Package Family Name (PFN) | `Rocktier.RocktierCADViewer_e0sb54jawjj5c` | 只读，引用应用时使用 | — |
+| Store ID | `9NBZS9SGWQ9R` | 只读，商店链接使用 | — |
 
-**关键：改完必须重新构建 MSIX 再提交。** 当前包内写的是：
-
-```15:17:Downloads/Rocktier-CAD-Viewer-MSStore/Rocktier.CAD.Viewer_0.1.0.0_x64.msix → AppxManifest.xml
-Name="studio.rocktier.cadviewer"
-Publisher="CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7"
-Version="0.1.0.0"
-```
-
-Publisher 已经是本账号的值（与 PDF Squeeze 相同），但 `Name` 需要按 Partner Center 的分配值核对。
-
-> 家族先例（两种写法都出现过，**以你 Partner Center 实际显示为准**）：
-> - PDF Squeeze → `Rocktier.RocktierPDFSqueeze`（微软分配风格）
-> - Pic2Webp → `com.rocktier.pic2webp`（反向域名风格）
+> ⚠️ **v0.1.0 的 MSIX 不能用于提交**：它的 `Identity/Name` 还是旧的 `studio.rocktier.cadviewer`，
+> 上传会直接报标识不匹配。已把标识改对、版本升到 **0.1.1** 并重新构建。
+>
+> 家族先例：PDF Squeeze 用的是 `Rocktier.RocktierPDFSqueeze`（微软分配风格）—— 本项目现在与之同构。
 
 ### 0.2 磁贴必须是当前设计
 
@@ -49,7 +42,7 @@ Publisher 已经是本账号的值（与 PDF Squeeze 相同），但 `Name` 需�
 |------|------|
 | **应用名称** | Rocktier CAD Viewer |
 | **发布者显示名称** | Rocktier |
-| **包标识（Identity Name）** | `Rocktier.CADViewer`（在 Partner Center 创建产品时确定，须与 MSIX 一致） |
+| **包标识（Identity Name）** | `Rocktier.RocktierCADViewer`（Partner Center 分配，已写入 `tauri.conf.json` 的 `identifier`） |
 | **Publisher** | `CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7`（与 PDF Squeeze 同一 Partner Center 账号，已写入 `src-tauri/gen/windows/bundle.config.json`） |
 | **定价** | US$4.99 买断（一次性） |
 | **试用** | 7 天限时试用（Time-limited trial） |

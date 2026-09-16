@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Rocktier CAD Viewer",
-  "version": "0.1.0",
-  "identifier": "studio.rocktier.cadviewer",
+  "version": "0.1.1",
+  "identifier": "Rocktier.RocktierCADViewer",
   "mainBinaryName": "RocktierCADViewer",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -47,7 +47,7 @@
         "mimeType": "image/vnd.dwg",
         "role": "Viewer",
         "exportedType": {
-          "identifier": "studio.rocktier.cadviewer.dwg",
+          "identifier": "Rocktier.RocktierCADViewer.dwg",
           "conformsTo": ["public.data"]
         }
       },
@@ -58,7 +58,7 @@
         "mimeType": "image/vnd.dxf",
         "role": "Viewer",
         "exportedType": {
-          "identifier": "studio.rocktier.cadviewer.dxf",
+          "identifier": "Rocktier.RocktierCADViewer.dxf",
           "conformsTo": ["public.data"]
         }
       }

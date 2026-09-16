@@ -5,6 +5,11 @@ on:
     branches: [master]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Attach the built artifacts to this existing release tag (e.g. v0.1.0)'
+        required: false
+        type: string
 
 # 同一分支/tag 的新推送会取消旧构建
 concurrency:
@@ -75,9 +80,10 @@ jobs:
           if-no-files-found: error
 
       - name: Release (tag push)
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
           files: Rocktier-CAD-Viewer_*_aarch64.dmg
           generate_release_notes: true
 
@@ -144,9 +150,10 @@ jobs:
           if-no-files-found: error
 
       - name: Release (tag push)
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
           files: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/msix/*.msix*

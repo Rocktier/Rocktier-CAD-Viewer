@@ -2680,4 +2680,23 @@ mod tests {
             );
         }
     }
+
+    /// Width factor: TEXT takes its own group 41, else the STYLE's; MTEXT must
+    /// ignore 41 (that is the column width there).  And group 60 = 1 hides the
+    /// entity — dynamic blocks hide their inactive states that way.
+    #[test]
+    fn width_factor_and_invisible_entities() {
+        let dxf = "\
+0\nSECTION\n2\nTABLES\n0\nSTYLE\n2\nNARROW\n3\ngbenor.shx\n41\n0.7\n0\nENDTAB\n0\nENDSEC\n\
+0\nSECTION\n2\nENTITIES\n\
+0\nTEXT\n8\nL1\n7\nNARROW\n1\nA\n10\n0\n20\n0\n40\n100\n\
+0\nTEXT\n8\nL1\n7\nNARROW\n41\n0.5\n1\nB\n10\n0\n20\n0\n40\n100\n\
+0\nMTEXT\n8\nL1\n7\nNARROW\n41\n500\n1\nC\n10\n0\n20\n0\n40\n100\n\
+0\nLINE\n8\nL1\n60\n1\n10\n0\n20\n0\n11\n1\n21\n0\n\
+0\nENDSEC\n0\nEOF\n";
+        let (meta, _) = parse_and_build(dxf, 0, false, 0).unwrap();
+        let wf: Vec<f32> = meta.texts.iter().map(|t| t.wf).collect();
+        assert_eq!(wf, vec![0.7, 0.5, 0.7], "style 0.7, own 0.5, MTEXT 41 ignored");
+        assert_eq!(meta.layouts[0].lines_len, 0, "group 60 = 1 must be invisible");
+    }
 }

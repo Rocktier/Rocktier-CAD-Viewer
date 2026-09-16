@@ -6,6 +6,10 @@
 
   const WEBSITE = "https://rocktier.com/";
   const FEEDBACK = "mailto:hello@rocktier.com";
+  /* GPL-3.0 requires the corresponding source to be offered, and the trademark
+     notice belongs where a user can actually read it. */
+  const SOURCE = "https://github.com/Rocktier/Rocktier-CAD-Viewer";
+  const NOTICES = `${SOURCE}/blob/master/THIRD-PARTY-NOTICES.md`;
 
   /** Hand the link to the OS; the webview itself must not navigate. */
   async function openExternal(e: MouseEvent, url: string) {
@@ -48,6 +52,11 @@
         <span><a href={FEEDBACK} onclick={(e) => openExternal(e, FEEDBACK)}>{t("feedback")}</a></span>
       </div>
       <p class="gpl-note">{t("gpl")}</p>
+      <p class="gpl-note">
+        {t("trademarkNote")}
+        <a href={SOURCE} onclick={(e) => openExternal(e, SOURCE)}>{t("sourceCode")}</a>
+        <a href={NOTICES} onclick={(e) => openExternal(e, NOTICES)}>{t("thirdParty")}</a>
+      </p>
     </div>
   </div>
 {/if}

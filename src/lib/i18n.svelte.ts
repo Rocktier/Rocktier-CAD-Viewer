@@ -36,6 +36,10 @@ const zh: Dict = {
   feedback: "反馈",
   website: "官网",
   gpl: "本应用以 GPL-3.0 开源（DXF/DWG 解析依赖自由软件）。",
+  trademarkNote:
+    "Rocktier CAD Viewer 是独立产品，与 Autodesk, Inc. 无隶属、背书或赞助关系。DWG、DXF、AutoCAD 是 Autodesk, Inc. 的商标或注册商标，此处仅用于说明本应用可打开的文件格式。",
+  sourceCode: "源代码",
+  thirdParty: "第三方声明",
   zoom: "缩放",
   segs: "图元",
   texts: "文字",
@@ -97,6 +101,10 @@ const en: Dict = {
   feedback: "Feedback",
   website: "Website",
   gpl: "GPL-3.0 open source (built on free software DXF/DWG parsers).",
+  trademarkNote:
+    "Rocktier CAD Viewer is an independent product, not affiliated with, endorsed by, or sponsored by Autodesk, Inc. DWG, DXF and AutoCAD are trademarks or registered trademarks of Autodesk, Inc., named here only to describe the file formats this app can open.",
+  sourceCode: "Source code",
+  thirdParty: "Third-party notices",
   zoom: "Zoom",
   segs: "Entities",
   texts: "Texts",

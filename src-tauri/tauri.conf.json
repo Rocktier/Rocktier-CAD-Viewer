@@ -30,7 +30,9 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "resources/libredwg/*"
+      "resources/libredwg/*",
+      "../LICENSE",
+      "../THIRD-PARTY-NOTICES.md"
     ],
     "icon": [
       "icons/32x32.png",

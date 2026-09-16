@@ -856,6 +856,21 @@ body {
   line-height: 1.5;
 }
 
+/* The two legal links trail the trademark sentence inline, so they need the
+   same underline affordance as the footer links. */
+.gpl-note a {
+  margin-left: 10px;
+  color: var(--text2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.gpl-note a:hover {
+  color: var(--red);
+}
+
 /* Paper-space layout tabs — only rendered when a drawing has sheets. */
 .layout-tabs {
   display: inline-flex;

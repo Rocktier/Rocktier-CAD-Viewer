@@ -3,6 +3,7 @@
   "productName": "Rocktier CAD Viewer",
   "version": "0.1.0",
   "identifier": "studio.rocktier.cadviewer",
+  "mainBinaryName": "RocktierCADViewer",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

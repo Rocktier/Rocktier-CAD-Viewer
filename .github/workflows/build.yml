@@ -140,7 +140,7 @@ jobs:
           name: Rocktier-CAD-Viewer-windows-x64
           path: |
             src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/gen/windows/output/*.msix
+            src-tauri/target/msix/*.msix*
           if-no-files-found: error
 
       - name: Release (tag push)
@@ -149,5 +149,5 @@ jobs:
         with:
           files: |
             src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/gen/windows/output/*.msix
+            src-tauri/target/msix/*.msix*
           generate_release_notes: true

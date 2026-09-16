@@ -13,6 +13,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:windows:build": "tauri-windows-bundle build --runner npm",
+    "sync:legal": "node scripts/sync-legal.mjs",
     "fixtures": "node fixtures/gen.mjs"
   },
   "dependencies": {

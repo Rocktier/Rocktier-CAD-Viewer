@@ -26,6 +26,11 @@ rcv_dwg_*.dxf
 src-tauri/resources/libredwg/*
 !src-tauri/resources/libredwg/.gitkeep
 
+# Licence copies that ship as resources — generated from the repo root by
+# `npm run sync:legal` (scripts/sync-legal.mjs), so the root files stay the
+# single source of truth.
+src-tauri/resources/legal/*
+
 # Real drawings used for local regression — customer files, never commit
 testdata/real/*.dwg
 testdata/real/*.dxf

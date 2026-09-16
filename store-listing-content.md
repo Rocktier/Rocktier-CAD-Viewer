@@ -246,8 +246,8 @@ Partner Center → 年龄分级 → 开始问卷调查。本项目是**纯离线
 
 | 项 | 位置 | 状态 |
 |---|---|---|
-| GPL-3.0 许可证全文 | 仓库根 `LICENSE`；随包落在 `Resources/_up_/LICENSE`（Windows 同结构） | ✅ |
-| 第三方声明（LibreDWG 归属 + 商标免责） | 仓库根 `THIRD-PARTY-NOTICES.md`；同样随包分发 | ✅ |
+| GPL-3.0 许可证全文 | 仓库根 `LICENSE`；构建前经 `scripts/sync-legal.mjs` 同步到 `src-tauri/resources/legal/`，随包落在 `resources/legal/LICENSE`（macOS / MSI / MSIX **同一路径**） | ✅ |
+| 第三方声明（LibreDWG 归属 + 商标免责） | 仓库根 `THIRD-PARTY-NOTICES.md`；同上，随包落在 `resources/legal/THIRD-PARTY-NOTICES.md` | ✅ |
 | 商标免责声明（界面可见） | 「关于」弹窗底部，中英双语 | ✅ |
 | 源码 / 第三方声明链接 | 「关于」弹窗，经 `open_url` 交给系统浏览器 | ✅ |
 | `license` 字段 | `package.json` 与 `src-tauri/Cargo.toml` 均为 `GPL-3.0-or-later` | ✅ |
@@ -261,3 +261,15 @@ GPL-3.0 要求向接收者提供**许可证副本**；同时 LibreDWG 以 `GPL-3
 必须保留其许可与版权声明、并提供源码获取方式。`THIRD-PARTY-NOTICES.md` 里写明了上游地址与固定版本号。
 
 > 注：声明放在**授权内**而不是商店文案，是刻意的——审核看的是商店列表，用户看的是应用内。
+
+### Windows 打包的坑：`../` 资源会被静默丢弃（v0.1.3 踩过）
+
+`tauri-windows-bundle` **只收集 `resources/**`**。而 Tauri 对 `bundle.resources` 里的 `"../LICENSE"` 会映射成一个 `_up_/` 目录——macOS 打包器认这个约定（落在 `Contents/Resources/_up_/LICENSE`），**Windows 侧不报错、不警告，直接不打包**。
+
+后果很严重：**v0.1.3 的 MSIX 会重新分发 LibreDWG 却不带它的许可证**，而 GPL-3.0 明确要求许可证副本随程序分发。**所以 v0.1.3 的包不可提交商店。**
+
+修法（`e434b4d`，v0.1.4 起）：`scripts/sync-legal.mjs` 在 `beforeBuildCommand` 里把根目录两份文件拷进 `src-tauri/resources/legal/`；`bundle.resources` 声明 `resources/legal/*`；`.gitignore` 忽略生成物，**根目录文件仍是唯一真源**（不会漂移）。
+
+> **验证方法：别只看仓库，拆开真实安装包。**
+> `unzip -l <msix> | grep resources/legal`
+> **「已推送」不等于「已随包分发」**——这条对家族里所有随包分发 GPL 二进制的软件都适用。

@@ -4,6 +4,45 @@
 
 ---
 
+## 0. ⚠️ 提交前必须对齐的两件事（首次提交最容易卡这里）
+
+### 0.1 包标识必须与 Partner Center **完全一致**
+
+在 Partner Center 建好产品后，进「产品 → 产品标识」会看到三项，其中前两项必须原样抄进代码，**否则上传 MSIX 直接报标识不匹配**：
+
+| Partner Center 字段 | 要写进哪里 |
+|---|---|
+| `Package/Identity/Name`（形如 `Rocktier.RocktierCADViewer`，微软分配） | `src-tauri/tauri.conf.json` 的 `identifier` |
+| `Package/Identity/Publisher`（形如 `CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7`） | `src-tauri/gen/windows/bundle.config.json` 的 `publisher` |
+| `Package/Properties/PublisherDisplayName` | 同上配置的 `publisherDisplayName` |
+
+**关键：改完必须重新构建 MSIX 再提交。** 当前包内写的是：
+
+```15:17:Downloads/Rocktier-CAD-Viewer-MSStore/Rocktier.CAD.Viewer_0.1.0.0_x64.msix → AppxManifest.xml
+Name="studio.rocktier.cadviewer"
+Publisher="CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7"
+Version="0.1.0.0"
+```
+
+Publisher 已经是本账号的值（与 PDF Squeeze 相同），但 `Name` 需要按 Partner Center 的分配值核对。
+
+> 家族先例（两种写法都出现过，**以你 Partner Center 实际显示为准**）：
+> - PDF Squeeze → `Rocktier.RocktierPDFSqueeze`（微软分配风格）
+> - Pic2Webp → `com.rocktier.pic2webp`（反向域名风格）
+
+### 0.2 磁贴必须是当前设计
+
+包内/安装器里的磁贴图标如果还是旧素材，会直接命中政策 **10.1.1.11（磁贴模糊或非自定义）**。
+
+本项目此前 `Square*Logo.png` / `StoreLogo.png` / `64x64.png` / `icon.png` 停留在 2026-09-11 的旧版本，**早于当前 `icon.svg`**；已于 2026-09-16 全部由当前矢量源重新生成，`icon.ico` 也重做（见第 8 节）。
+
+### 0.3 两个已核验、无需改动的点
+
+- **清单语言资源**：`AppxManifest.xml` 目前只声明 `<Resource Language="en-us" />`。应用内的中英切换是运行时的，与清单无关；**不建议**在没有对应资源包的情况下自行添加 `zh-cn`，声明了却没有资源反而会被校验挑出来。
+- **权限声明**：清单里只有打包器自动附加的 `runFullTrust`，**没有 `internetClient`** —— 这与"纯离线、不上传"的宣称一致，是加分项。
+
+---
+
 ## 1. 应用信息
 
 | 字段 | 内容 |
@@ -145,6 +184,7 @@ CAD看图, 图纸查看, DWG查看器, DXF查看器
 | 项 | 状态 |
 |---|---|
 | `icon.ico` 含 16/24/32/48/64/128/256 七种尺寸 | ✅ 由矢量逐尺寸渲染（非缩放），已替换 `src-tauri/icons/icon.ico` |
+| **平台图标/磁贴与当前 `icon.svg` 同源** | ✅ 2026-09-16 重新生成全部 `Square*Logo.png`、`StoreLogo.png`、`64x64.png`、`icon.png`（此前停留在 09-11 旧版，命中 10.1.1.11 风险） |
 | MSIX 包内磁贴（Square150/44、StoreLogo、Wide310x150） | ✅ `src-tauri/gen/windows/Assets/` |
 | Partner Center 300×300 磁贴 | ✅ `store-assets/store-tile-300.png` |
 | MSIX 打包配置（Publisher / 文件关联 / 权限） | ✅ `src-tauri/gen/windows/bundle.config.json` |

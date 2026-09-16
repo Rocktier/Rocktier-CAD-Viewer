@@ -102,15 +102,15 @@ CAD看图, 图纸查看, DWG查看器, DXF查看器
 
 要求：桌面屏幕截图，**1366×768 以上**，至少 1 张（建议 4–6 张）。本仓库 `store-assets/` 内：
 
-| 文件 | 画面 |
-|------|------|
-| `screenshot-1-empty.png` | 空状态 — 拖放区与入口 |
-| `screenshot-2-drawing.png` | 打开图纸 — 完整平面图 + 工具栏 |
-| `screenshot-3-measure.png` | 测距中 — 两点吸附与距离读数 |
-| `screenshot-4-layers.png` | 图层面板 — 图层列表、颜色与开关 |
+| 文件 | 尺寸 | 画面 |
+|------|------|------|
+| `screenshot-1-drawing.png` | 2560×1544 | 打开图纸 — 完整平面图 + 图层面板 |
+| `screenshot-2-empty.png` | 2560×1544 | 空状态 — 品牌文案与打开入口 |
+| `hero-1920x1080.png` | 1920×1080 | 16:9 商店推广图（可选） |
 
-> 截图使用 `store-assets/demo-floor-plan.dxf`（本仓库脚本 `make-demo-plan.py` 生成的**合成图纸**）。
-> **不要**用 `testdata/real/` 里的真实客户图纸做公开截图。
+> 截图为「仅捕获应用窗口」后裁掉 macOS 标题栏的结果，画面内不含任何第三方或个人内容。
+> 图纸使用 `store-assets/office-plan.dxf`（本仓库脚本 `make-demo-plan.py` 生成的**合成图纸**）。
+> **不要**用 `testdata/real/` 里的真实客户图纸做公开截图 —— 客户图纸名一旦出现在「最近打开」列表里，也会随空状态截图一起泄露。
 
 ---
 

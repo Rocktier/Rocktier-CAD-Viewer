@@ -8,13 +8,13 @@ only LINE / LWPOLYLINE / CIRCLE / ARC / TEXT, which is what the viewer's own
 dxf_ascii parser handles best.
 
 Run:  python3 store-assets/make-demo-plan.py
-Out:  store-assets/demo-floor-plan.dxf
+Out:  store-assets/office-plan.dxf
 """
 
 import math
 import os
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo-floor-plan.dxf")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "office-plan.dxf")
 
 W, H = 12000.0, 8000.0          # overall building envelope (mm)
 T_EXT, T_INT = 240.0, 120.0     # wall thicknesses
@@ -150,7 +150,6 @@ door(2900, 120, 1000, swing="ccw")                                # main entranc
 door(7480, 5400, 900, swing="ccw", axis="v")                      # into meeting room
 door(9000, 3060, 800, swing="ccw")                                # into storage
 door(2700, 4480, 900, swing="ccw")                                # between offices
-door(7660, 6300, 0.1)                                             # leaf line only
 
 window("A-WINDOW", 1600, H - T_EXT / 2, 3400, H - T_EXT / 2, T_EXT)
 window("A-WINDOW", 4300, H - T_EXT / 2, 6100, H - T_EXT / 2, T_EXT)
@@ -199,8 +198,6 @@ text("A-TEXT", 240, 150, 260, "DEMO FLOOR PLAN  |  SCALE 1:50  |  UNITS: mm")
 # ── Dimensions ────────────────────────────────────────────────────
 dimension(0, 0, W, 0, -900, "12000")
 dimension(0, 0, 0, H, -900, "8000")
-dimension(0, 4600, 7600, 4600, 0, "7600")
-dimension(7600, 0, 7600, H, 0, "8000")
 
 # ── Column grid (structural, dashed feel via short segments) ──────
 for gx in (0, 4000, 7600, W):

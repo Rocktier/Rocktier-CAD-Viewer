@@ -9,6 +9,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:windows:build": "tauri-windows-bundle build",
     "fixtures": "node fixtures/gen.mjs"
   },
   "dependencies": {
@@ -16,6 +19,7 @@
     "@tauri-apps/plugin-dialog": "^2.7.3"
   },
   "devDependencies": {
+    "@choochmeque/tauri-windows-bundle": "^0.1.29",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@tauri-apps/cli": "^2",
     "@types/node": "^22.20.2",

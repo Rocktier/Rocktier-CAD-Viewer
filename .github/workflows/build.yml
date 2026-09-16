@@ -1,0 +1,153 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+# 同一分支/tag 的新推送会取消旧构建
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ────────────────────────────────────────────────────────────────
+  #  macOS：release .app（重签名 + 随包 LibreDWG）+ DMG
+  # ────────────────────────────────────────────────────────────────
+  build-macos:
+    name: macOS (Apple Silicon)
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mirrors (npm + cargo TUNA sparse)
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          mkdir -p ~/.cargo
+          cat > ~/.cargo/config.toml << 'EOF'
+          [source.crates-io]
+          replace-with = "tuna"
+          [source.tuna]
+          registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"
+          EOF
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # dwg2dxf 是运行时依赖，不进 cargo；build_app.sh 会把它和 dylib 塞进 .app
+      - name: Install LibreDWG + create-dmg
+        run: brew install libredwg create-dmg
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build .app (re-signed, LibreDWG sidecar bundled)
+        run: ./build_app.sh
+
+      - name: Build DMG
+        run: ./bundle_dmg.sh
+
+      - name: Prepare release artifact
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          cp "$HOME/Downloads/Rocktier CAD Viewer.dmg" "Rocktier-CAD-Viewer_${VERSION}_aarch64.dmg"
+          ls -lh "Rocktier-CAD-Viewer_${VERSION}_aarch64.dmg"
+
+      - name: Upload artifact (master branch)
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rocktier-CAD-Viewer-macos-aarch64
+          path: Rocktier-CAD-Viewer_*_aarch64.dmg
+          if-no-files-found: error
+
+      - name: Release (tag push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Rocktier-CAD-Viewer_*_aarch64.dmg
+          generate_release_notes: true
+
+  # ────────────────────────────────────────────────────────────────
+  #  Windows：MSI / NSIS 安装包 + MSIX（Microsoft Store）
+  # ────────────────────────────────────────────────────────────────
+  build-windows:
+    name: Windows x64 (MSI + MSIX)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mirrors (npm + cargo TUNA sparse)
+        shell: pwsh
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          $dir = "$env:USERPROFILE\.cargo"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          @"
+          [source.crates-io]
+          replace-with = "tuna"
+          [source.tuna]
+          registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"
+          "@ | Out-File -FilePath "$dir\config.toml" -Encoding utf8
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm dependencies
+        run: npm install
+
+      # DWG 支持靠随包分发的 dwg2dxf.exe；这里下载官方 win64 发行包并复制到
+      # src-tauri/resources/libredwg/，tauri.conf.json 已声明该目录为 bundle resources
+      - name: Provision LibreDWG sidecar (dwg2dxf.exe)
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File scripts/provision-libredwg-windows.ps1 -Download
+
+      - name: Build MSI + NSIS installers
+        run: npm run tauri build
+
+      - name: Build MSIX (Microsoft Store)
+        run: npm run tauri:windows:build
+
+      - name: Upload artifacts (master branch)
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rocktier-CAD-Viewer-windows-x64
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/gen/windows/output/*.msix
+          if-no-files-found: error
+
+      - name: Release (tag push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/gen/windows/output/*.msix
+          generate_release_notes: true

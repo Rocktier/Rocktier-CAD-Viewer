@@ -1,0 +1,35 @@
+{
+  "publisher": "CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7",
+  "publisherDisplayName": "Rocktier",
+  "capabilities": {
+    "general": []
+  },
+  "extensions": {
+    "shareTarget": false,
+    "fileAssociations": [
+      {
+        "description": "AutoCAD DWG drawing",
+        "extensions": [
+          ".dwg"
+        ],
+        "name": "CAD Drawing"
+      },
+      {
+        "description": "AutoCAD DXF drawing",
+        "extensions": [
+          ".dxf"
+        ],
+        "name": "CAD Drawing Exchange Format"
+      }
+    ],
+    "protocolHandlers": []
+  },
+  "signing": {
+    "pfx": null,
+    "pfxPassword": null
+  },
+  "resourceIndex": {
+    "enabled": false,
+    "keepConfig": false
+  }
+}

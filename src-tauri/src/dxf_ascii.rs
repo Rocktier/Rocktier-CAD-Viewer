@@ -602,6 +602,15 @@ impl State {
     }
 
     fn dispatch(&mut self, entity_type: &str, buf: &[(i32, String)]) {
+        // Group 60 = 1 marks an entity invisible.  Dynamic blocks keep every
+        // visibility-state variant in the block definition and flag the
+        // inactive ones this way — LibreDWG's DXF output carries 2 700+ such
+        // entities on a single Chinese residential plan, and drawing them
+        // superimposes several sizes of the same fixture into an unreadable
+        // tangle.  AutoCAD never shows them, so neither do we.
+        if i(buf, 60, 0) == 1 {
+            return;
+        }
         // Dash phase is per entity: without this reset every dashed line would
         // resume wherever the previous one stopped.
         self.dash_phase = 0.0;

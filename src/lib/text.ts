@@ -119,6 +119,9 @@ export function drawTexts(
     ctx.save();
     ctx.translate(p.sx, p.sy);
     if (rot) ctx.rotate((-rot * Math.PI) / 180);
+    // Horizontal-only scale: AutoCAD's width factor (0.5…0.8 on Chinese
+    // drawings) stretches the glyphs, not the line height.
+    if (item.wf && Math.abs(item.wf - 1) > 0.01 && item.wf > 0) ctx.scale(item.wf, 1);
 
     for (let i = 0; i < lines.length; i++) {
       const n = lines.length;

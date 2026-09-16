@@ -23,6 +23,9 @@ pub struct TextItem {
     pub y: f32,
     /// Text height in world units.
     pub h: f32,
+    /// Width factor from the text style (group 41): 1.0 is unstretched, 0.7 is
+    /// the condensed Chinese style.  Horizontal only — the glyph height is `h`.
+    pub wf: f32,
     /// Rotation in degrees, CCW.
     pub rot: f32,
     pub r: u8,

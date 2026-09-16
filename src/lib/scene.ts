@@ -46,6 +46,8 @@ export interface TextItem {
   x: number;
   y: number;
   h: number;
+  /** Style width factor (1 = unstretched, 0.7 = condensed Chinese style). */
+  wf?: number;
   rot: number;
   r: number;
   g: number;

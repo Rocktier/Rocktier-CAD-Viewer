@@ -129,6 +129,10 @@ struct State {
     layer_ltype: std::collections::HashMap<String, String>,
     /// Global linetype scale ($LTSCALE); 1.0 when the header omits it.
     ltscale: f64,
+    /// STYLE table: text style name → width factor (group 41).  Chinese
+    /// drawings lean on condensed styles (0.5…0.8) for labels and dimension
+    /// text; drawing them at 1.0 makes every such note visibly too wide.
+    style_width: std::collections::HashMap<String, f64>,
     /// BLOCKS section: block name → [(entity type, group-code pairs)].
     blocks: std::collections::HashMap<String, Vec<(String, Vec<(i32, String)>)>>,
     /// Active block-insert transform: (tx, ty, scale, cos θ, sin θ).
@@ -185,6 +189,7 @@ impl State {
             ltype_defs: std::collections::HashMap::new(),
             layer_ltype: std::collections::HashMap::new(),
             ltscale: 1.0,
+            style_width: std::collections::HashMap::new(),
             blocks: std::collections::HashMap::new(),
             xf: (0.0, 0.0, 1.0, 1.0, 0.0),
             xf_depth: 0,
@@ -406,6 +411,7 @@ impl State {
         self.layer_ltype = layer_ltype;
         self.ltype_defs = scan_ltype_table(input);
         self.ltscale = scan_header_var(input, "LTSCALE", 1.0);
+        self.style_width = scan_style_table(input);
         self.blocks = scan_blocks(input);
 
         // Register every LAYER record up front, so the panel lists the drawing's
@@ -832,7 +838,19 @@ impl State {
         if self.xf_depth >= 8 { return; } // cyclic block references
         let ents = match self.blocks.get(name) {
             Some(e) => e.clone(),
-            None => { self.skipped += 1; return; } // unresolved / xref block
+            None => {
+                // `_Dot` is the dot marker TianZheng / AutoCAD Architecture
+                // sprinkles along dimension and furniture symbols.  Its block
+                // never travels with the DXF, and all it draws is a single
+                // point — emitting one beats counting thousands of "undrawn
+                // entities" in the status bar.
+                if name.eq_ignore_ascii_case("_Dot") {
+                    self.push_point(ix, iy);
+                    return;
+                }
+                self.skipped += 1; // unresolved / xref block
+                return;
+            }
         };
 
         let rot = rot_deg.to_radians();
@@ -886,7 +904,9 @@ impl State {
         let name = s(buf, 2).to_string();
         if name.is_empty() || !self.blocks.contains_key(&name) {
             // No anonymous block (e.g. minimal DXF): fall back to its endpoints.
-            self.skipped += 1;
+            // Not counted as skipped — the dimension lines *are* drawn, and
+            // counting every one of them made the status bar claim tens of
+            // thousands of undrawn entities on a plan where none were missing.
             self.parse_dimlike(buf);
             return;
         }
@@ -972,6 +992,24 @@ impl State {
         }
     }
 
+    /// Effective horizontal scale for a text entity.
+    ///
+    /// TEXT/ATTRIB carry the width factor in group 41; MTEXT uses group 41 for
+    /// the reference column width instead, so there only the style's factor
+    /// applies.
+    fn width_factor(&self, buf: &[(i32, String)], is_mtext: bool) -> f64 {
+        if !is_mtext {
+            let own = f(buf, 41, f64::NAN);
+            if own.is_finite() && own > 1e-6 {
+                return own;
+            }
+        }
+        match self.style_width.get(s(buf, 7)) {
+            Some(&w) if w.is_finite() && w > 1e-6 => w,
+            _ => 1.0,
+        }
+    }
+
     fn parse_text(&mut self, buf: &[(i32, String)], is_mtext: bool) {
         let raw = s(buf, 1);
         let display = decode_mtext(raw);
@@ -1012,6 +1050,7 @@ impl State {
                 return;
             }
         }
+        let wf = self.width_factor(buf, is_mtext);
         self.texts.push(TextItem {
             // Layout index (0 = model space), not a layer index.
             layout: self.cur_layout as u32,
@@ -1019,6 +1058,7 @@ impl State {
             x: x as f32,
             y: y as f32,
             h: (f(buf, 40, 1.0) * sx) as f32,
+            wf: wf as f32,
             rot: (rot + sxn.atan2(cx).to_degrees()) as f32,
             r, g, b, a,
             ha: ha as u8,
@@ -1047,12 +1087,14 @@ impl State {
             }
         }
         let (_, _, sx, cx, sxn) = self.xf;
+        let wf = self.width_factor(buf, false);
         self.texts.push(TextItem {
             layout: self.cur_layout as u32,
             layer: li as u32,
             x: x as f32,
             y: y as f32,
             h: (f(buf, 40, 1.0) * sx) as f32,
+            wf: wf as f32,
             rot: (f(buf, 50, 0.0) + sxn.atan2(cx).to_degrees()) as f32,
             r, g, b, a,
             ha: i(buf, 72, 0) as u8,
@@ -2401,6 +2443,53 @@ fn scan_layer_table(
         }
     }
     (out, order, ltypes)
+}
+
+/// Pre-scan the TABLES section for STYLE records: style name → width factor
+/// (group 41).  Height and font file live there too, but the width factor is
+/// the only one a viewer that substitutes system fonts can act on: it is what
+/// makes a condensed Chinese style read condensed.
+fn scan_style_table(input: &str) -> std::collections::HashMap<String, f64> {
+    use std::collections::HashMap;
+    let lines: Vec<&str> = input.lines().collect();
+    let mut out: HashMap<String, f64> = HashMap::new();
+    let mut in_tables = false;
+    let mut in_style = false;
+    let mut name: Option<String> = None;
+    let mut width = 1.0f64;
+
+    let mut i = 0usize;
+    while i + 1 < lines.len() {
+        let code: i32 = match lines[i].trim().parse() {
+            Ok(c) => c,
+            Err(_) => { i += 2; continue; }
+        };
+        let value = lines[i + 1].trim_end_matches('\r').trim_start();
+        i += 2;
+
+        if !in_tables {
+            if code == 2 && value.eq_ignore_ascii_case("TABLES") { in_tables = true; }
+            continue;
+        }
+        if code == 0 {
+            if let Some(n) = name.take() {
+                out.insert(n, width);
+            }
+            if value.eq_ignore_ascii_case("ENDSEC") { break; }
+            in_style = value.eq_ignore_ascii_case("STYLE");
+            width = 1.0;
+            continue;
+        }
+        if in_style {
+            if code == 2 { name = Some(value.to_string()); }
+            if code == 41 {
+                if let Ok(w) = value.parse::<f64>() {
+                    if w.is_finite() && w > 1e-6 { width = w; }
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Pre-scan the BLOCKS section into name → [(entity type, group-code pairs)].

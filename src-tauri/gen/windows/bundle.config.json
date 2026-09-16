@@ -8,14 +8,14 @@
     "shareTarget": false,
     "fileAssociations": [
       {
-        "description": "AutoCAD DWG drawing",
+        "description": "DWG drawing",
         "extensions": [
           ".dwg"
         ],
         "name": "CAD Drawing"
       },
       {
-        "description": "AutoCAD DXF drawing",
+        "description": "DXF drawing",
         "extensions": [
           ".dxf"
         ],

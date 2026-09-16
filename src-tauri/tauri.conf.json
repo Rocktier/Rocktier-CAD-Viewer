@@ -43,7 +43,7 @@
       {
         "ext": ["dwg"],
         "name": "CAD Drawing",
-        "description": "AutoCAD DWG drawing",
+        "description": "DWG drawing",
         "mimeType": "image/vnd.dwg",
         "role": "Viewer",
         "exportedType": {
@@ -54,7 +54,7 @@
       {
         "ext": ["dxf"],
         "name": "CAD Drawing Exchange Format",
-        "description": "AutoCAD DXF drawing",
+        "description": "DXF drawing",
         "mimeType": "image/vnd.dxf",
         "role": "Viewer",
         "exportedType": {

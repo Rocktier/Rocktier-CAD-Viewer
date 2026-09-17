@@ -45,7 +45,7 @@ Partner Center「产品标识」实测值（2026-09-16 核对），已逐项写�
 | **包标识（Identity Name）** | `Rocktier.RocktierCADViewer`（Partner Center 分配，已写入 `tauri.conf.json` 的 `identifier`） |
 | **Publisher** | `CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7`（与 PDF Squeeze 同一 Partner Center 账号，已写入 `src-tauri/gen/windows/bundle.config.json`） |
 | **定价** | US$4.99 买断（一次性） |
-| **试用** | 7 天限时试用（Time-limited trial） |
+| **试用** | **不启用**（纯买断）。代码里没有任何 license/trial 逻辑，启用试用等于白送；描述文案也据此写为一次性买断 |
 | **隐私政策 URL** | `https://rocktier.com/privacy` |
 | **支持联系邮箱** | hello@rocktier.com |
 | **支持 URL** | `https://rocktier.com/` |
@@ -83,6 +83,7 @@ Open DWG and DXF drawings in seconds. Fast, offline CAD viewer — no CAD suite 
 > - **Paper space layouts** — view each layout the way it was plotted
 > - **Private by design** — drawings are processed entirely on your device. Nothing is uploaded, and there is no telemetry of any kind
 > - **Works offline** — no account, no sign-in, no connection needed
+> - **Small and self-contained** — about 10 MB to install, and that already includes its own DWG engine. No bundled runtime, no background service, nothing left running once you close the window
 >
 > **Built for**
 >
@@ -92,7 +93,8 @@ Open DWG and DXF drawings in seconds. Fast, offline CAD viewer — no CAD suite 
 >
 > English and Chinese (Simplified) interface.
 >
-> Try it for 7 days. After that it is a one-time purchase — no subscription, no renewal.
+> One-time purchase — no subscription, no renewal. The app does not phone home, so
+> there is nothing to sign in to and nothing that expires.
 
 ### Release notes (v0.1.0)
 
@@ -234,7 +236,7 @@ Partner Center → 年龄分级 → 开始问卷调查。本项目是**纯离线
 | #5 | 磁贴图标模糊（尺寸不足） | ✅ `icon.ico` 七种尺寸、逐尺寸矢量渲染 |
 | #6 | 区分" Partner Center 图片"与"包内磁贴" | ✅ 两套都产出，见第 5、6 节 |
 | #7 | 改名后同步全部图标格式 | ✅ svg / png / ico / icns / 磁贴 全部一致 |
-| #13 | 付费应用描述**零 "free"** | ✅ 全文用 "7 days"、"one-time purchase"，无 "free" |
+| #13 | 付费应用描述**零 "free"** | ✅ 全文用 "one-time purchase"，无字面 "free"（2026-09-17 起也不再出现 "7 days"，与「不启用试用」一致） |
 | #14 | 描述中禁止推广其他平台 | ✅ 描述内无 macOS / Mac / Apple / Linux 字样 |
 | #15 | 隐私政策链接必须可访问 | ✅ 实测 200 |
 | #16 | 关键词禁止含平台/产品名 | ✅ 关键词全为功能词，无 MacOS / AutoCAD |

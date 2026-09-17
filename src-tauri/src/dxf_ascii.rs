@@ -2109,8 +2109,13 @@ fn arc_pts_angle(
     a0: f64,
     mut a1: f64,
 ) -> Vec<(f64, f64)> {
-    while a1 <= a0 {
-        a1 += 2.0 * std::f64::consts::PI;
+    // 逐次 +2π 直到 a1 > a0 —— 与原来的循环逐字等价，但 O(1)。
+    // 损坏/伪造的 HATCH 圆弧边可以给出 1e300 这样的角度，原循环要跑 1e299 次，
+    // 解析永不返回、UI 卡在加载态（可被任意一个这样的文件触发的拒绝服务）。
+    if a1 <= a0 {
+        a1 += 2.0 * std::f64::consts::PI
+            * ((a0 - a1) / (2.0 * std::f64::consts::PI)).floor()
+            + 2.0 * std::f64::consts::PI;
     }
     let sweep = a1 - a0;
     let steps = ((sweep / (2.0 * std::f64::consts::PI) * 64.0).ceil() as usize).max(6);
@@ -2698,5 +2703,14 @@ mod tests {
         let wf: Vec<f32> = meta.texts.iter().map(|t| t.wf).collect();
         assert_eq!(wf, vec![0.7, 0.5, 0.7], "style 0.7, own 0.5, MTEXT 41 ignored");
         assert_eq!(meta.layouts[0].lines_len, 0, "group 60 = 1 must be invisible");
+    }
+
+    #[test]
+    fn hatch_arc_with_a_wild_angle_terminates() {
+        // 损坏的 HATCH 圆弧边可以给出 1e300 这样的起始角。换成算术归一之前，
+        // 这里是 `while a1 <= a0 { a1 += 2π }`，要迭代约 1e299 次 —— 解析永不返回，
+        // UI 永远停在加载态。这条测试在修复前会直接卡死。
+        let pts = arc_pts_angle(0.0, 0.0, 1.0, 1.0, 0.0, 1e300, 0.0);
+        assert!(pts.len() >= 2, "圆弧仍应被采样出来");
     }
 }

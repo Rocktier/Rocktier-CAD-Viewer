@@ -54,6 +54,10 @@ Partner Center「产品标识」实测值（2026-09-16 核对），已逐项写�
 
 ## 2. English listing
 
+> ⚠️ **本节的文案已于 2026-09-17 更新**（新增「Small and self-contained」体积说明；把「Try it for 7 days」改为一次性买断）。
+> 但**商店里的列表仍是当天提交审核的旧版**——**这些改动随下一个版本一起提交，不要为此单独重发**。
+> 提交下一版时，只需把本节的两段文案替换进 Partner Center 的对应字段即可。
+
 ### Short description
 
 > （上限 100 字符，本行 86 字符）

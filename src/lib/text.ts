@@ -38,7 +38,7 @@ export function uprightRot(
   if (n <= 90.001 || n >= 269.999) return { rot, ha, va };
   return {
     rot: n - 180,
-    ha: ha === 2 ? 0 : ha,
+    ha: ha === 0 ? 2 : ha === 2 ? 0 : ha,
     va: va === 3 ? 1 : va === 1 ? 3 : va,
   };
 }

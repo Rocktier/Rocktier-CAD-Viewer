@@ -2408,6 +2408,9 @@ fn scan_layer_table(
     let mut name: Option<String> = None;
     let mut color = 7i32;
     let mut ltype = String::new();
+    // LAYER 组码 70 的 bit 1（值 1）= 冻结。AutoCAD 不绘制冻结图层，此前只判了
+    // "负色号 = 关闭"，冻结图层的内容会被画出来。
+    let mut frozen = false;
 
     let mut i = 0usize;
     while i + 1 < lines.len() {
@@ -2428,7 +2431,7 @@ fn scan_layer_table(
             if let Some(n) = name.take() {
                 // 0 is not a legal ACI for a layer record; fall back to 7.
                 let aci = if color == 0 { 7 } else { color.abs().min(255) as u8 };
-                if out.insert(n.clone(), (aci, color < 0, ltype.clone())).is_none() {
+                if out.insert(n.clone(), (aci, color < 0 || frozen, ltype.clone())).is_none() {
                     order.push(n.clone());
                 }
                 if !ltype.is_empty() {
@@ -2439,11 +2442,13 @@ fn scan_layer_table(
             is_layer = value.eq_ignore_ascii_case("LAYER");
             color = 7;
             ltype.clear();
+            frozen = false;
             continue;
         }
         if is_layer {
             if code == 2 { name = Some(value.to_string()); }
             if code == 62 { if let Ok(c) = value.parse::<i32>() { color = c; } }
+            if code == 70 { if let Ok(f) = value.parse::<i32>() { frozen = f & 1 != 0; } }
             if code == 6 { ltype = value.to_string(); }
         }
     }

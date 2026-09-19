@@ -101,7 +101,7 @@ const en: Dict = {
   solidDesc: "Built to last, no lock-in",
   feedback: "Feedback",
   website: "Website",
-  gpl: "GPL-3.0 open source (built on free software DXF/DWG parsers).",
+  gpl: "MIT licensed. DWG/DXF parsing uses LibreDWG's dwg2dxf (GPL-3.0-or-later) as a separate process.",
   trademarkNote:
     "Rocktier CAD Viewer is an independent product, not affiliated with, endorsed by, or sponsored by Autodesk, Inc. DWG, DXF and AutoCAD are trademarks or registered trademarks of Autodesk, Inc., named here only to describe the file formats this app can open.",
   sourceCode: "Source code",

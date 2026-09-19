@@ -99,4 +99,4 @@ Real drawings used for regression live in `testdata/real/` and are git-ignored
 
 ## License
 
-GPL-3.0 (DXF/DWG parsing depends on free software).
+MIT. DWG/DXF parsing runs LibreDWG's `dwg2dxf` (GPL-3.0-or-later) as a separate process — see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

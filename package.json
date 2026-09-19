@@ -2,8 +2,8 @@
   "name": "rocktier-cad-viewer",
   "productName": "Rocktier CAD Viewer",
   "private": true,
-  "version": "0.1.4",
-  "license": "GPL-3.0-or-later",
+  "version": "0.2.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

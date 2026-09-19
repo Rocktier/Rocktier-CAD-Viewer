@@ -1,11 +1,18 @@
 # Third-party notices
 
-Rocktier CAD Viewer is free software: you can redistribute it and/or modify it under
-the terms of the **GNU General Public License** as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later version.
+Rocktier CAD Viewer is released under the **MIT License**. The full text lives in
+[LICENSE](LICENSE). There is **no warranty** for this program, to the extent permitted
+by law.
 
-The full licence text ships with the application and lives in [LICENSE](LICENSE).
-There is **no warranty** for this program, to the extent permitted by law.
+> **Why the application itself is not GPL.** An earlier release declared
+> `GPL-3.0-or-later` for the whole application. That was a choice, not an obligation.
+> The only copyleft component involved is LibreDWG's `dwg2dxf`, which this application
+> runs as a **separate process** and talks to through files in a public format — it is
+> not linked into this binary in any form (no static or dynamic linkage, no headers, no
+> shared address space). Under the standard reading that is *mere aggregation*, and the
+> obligations attach to `dwg2dxf` itself, which is met in full below: its licence is
+> reproduced, its source is offered, and it is unmodified. The components we do link —
+> Tauri, Svelte, the Rust crates — are all permissively licensed.
 
 ---
 

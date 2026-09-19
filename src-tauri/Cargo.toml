@@ -1,9 +1,9 @@
 [package]
 name = "rocktier-cad-viewer"
-version = "0.1.4"
+version = "0.2.0"
 description = "Fast, private CAD viewer. No internet needed."
 authors = ["Rocktier"]
-license = "GPL-3.0-or-later"
+license = "MIT"
 edition = "2021"
 default-run = "rocktier-cad-viewer"
 

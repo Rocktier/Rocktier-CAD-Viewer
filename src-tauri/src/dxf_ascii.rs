@@ -2074,27 +2074,42 @@ fn push_points(out: &mut Vec<(f64, f64)>, pts: &[(f64, f64)]) {
 }
 
 /// Bulge (DXF group 42) → arc polyline points, including both endpoints.
+///
+/// The centre sits at `r - sagitta` from the chord midpoint, **not** at the sagitta
+/// itself. The previous version placed the centre on the arc's apex, which made the
+/// radius `sqrt(half_chord² + sagitta²)` instead of the true radius, so the sampled
+/// arc never reached `p2` — every bulge-bearing LWPOLYLINE (door swings, fillets,
+/// curved walls) came out detached from the segment that follows it. The tests below
+/// assert the endpoint, the radius and the apex so the mistake cannot come back.
 fn arc_points(x1: f64, y1: f64, x2: f64, y2: f64, bulge: f64) -> Vec<(f64, f64)> {
     let mut out = vec![(x1, y1)];
     let (dx, dy) = (x2 - x1, y2 - y1);
     let chord = (dx * dx + dy * dy).sqrt();
-    if chord < 1e-12 {
+    if chord < 1e-12 || bulge.abs() < 1e-12 {
         out.push((x2, y2));
         return out;
     }
+    // Signed included angle. |theta| > pi means a reflex arc (|bulge| > 1).
+    let theta = 4.0 * bulge.atan();
+    // Signed radius: the sign tells us which side of the chord the centre is on.
+    let r = (chord / 2.0) / (theta / 2.0).sin();
+    // Signed arc height, measured from the chord midpoint toward the bulge.
     let sagitta = bulge * chord / 2.0;
-    let included = 4.0 * bulge.abs().atan();
-    let n = ((included / (2.0 * std::f64::consts::PI) * 64.0).ceil() as u32).max(4);
     let (mx, my) = ((x1 + x2) / 2.0, (y1 + y2) / 2.0);
     let (px, py) = (-dy / chord, dx / chord);
-    let sign = if bulge >= 0.0 { 1.0 } else { -1.0 };
-    let (cx, cy) = (mx + sign * px * sagitta, my + sign * py * sagitta);
-    let r = ((x1 - cx).powi(2) + (y1 - cy).powi(2)).sqrt();
+    let d = r - sagitta;
+    let (cx, cy) = (mx - px * d, my - py * d);
+    let rr = r.abs();
+    let n = ((theta.abs() / (2.0 * std::f64::consts::PI) * 64.0).ceil() as u32).max(4);
     let a0 = (y1 - cy).atan2(x1 - cx);
-    let dir = if bulge >= 0.0 { 1.0 } else { -1.0 };
+    let sweep = -theta;
     for i in 1..=n {
-        let a = a0 + dir * included * (i as f64 / n as f64);
-        out.push((cx + r * a.cos(), cy + r * a.sin()));
+        let a = a0 + sweep * (i as f64 / n as f64);
+        out.push((cx + rr * a.cos(), cy + rr * a.sin()));
+    }
+    // Land exactly on p2 to kill float drift at the seam with the next segment.
+    if let Some(last) = out.last_mut() {
+        *last = (x2, y2);
     }
     out
 }
@@ -2640,6 +2655,53 @@ pub(crate) fn append_tri(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A bulge arc must land on its far endpoint. The old formula put the centre on
+    /// the arc's apex, so the end sample missed p2 by up to 220% of the chord length —
+    /// a regression here means every door swing and fillet is detached again.
+    #[test]
+    fn bulge_arc_lands_on_the_far_endpoint() {
+        for &b in &[-2.0, -1.0, -0.5, -0.2, -0.05, 0.0, 0.05, 0.2, 0.4142, 0.5, 1.0, 2.0] {
+            let pts = arc_points(0.0, 0.0, 10.0, 0.0, b);
+            assert!(
+                (pts[0].0).abs() < 1e-12 && (pts[0].1).abs() < 1e-12,
+                "bulge {b}: first sample must be p1, got {:?}",
+                pts[0]
+            );
+            let last = *pts.last().unwrap();
+            assert!(
+                (last.0 - 10.0).abs() < 1e-9 && last.1.abs() < 1e-9,
+                "bulge {b}: arc ends at {last:?}, expected (10, 0)"
+            );
+        }
+    }
+
+    /// Every sample must sit on the circle with radius (chord/2)/sin(theta/2), and a
+    /// minor arc must bulge to the side the sign of the bulge says.
+    #[test]
+    fn bulge_arc_lies_on_the_true_circle() {
+        for &b in &[-1.0, -0.5, -0.2, -0.05, 0.05, 0.2, 0.4142, 0.5, 1.0] {
+            let theta = 4.0 * b.atan();
+            let r = (10.0 / 2.0) / (theta / 2.0).sin();
+            // Chord (0,0)→(10,0): midpoint (5,0), unit normal (0,1), centre offset r - s.
+            let sagitta = b * 10.0 / 2.0;
+            let (cx, cy) = (5.0, -(r - sagitta));
+            let pts = arc_points(0.0, 0.0, 10.0, 0.0, b);
+            for p in &pts {
+                let dist = ((p.0 - cx).powi(2) + (p.1 - cy).powi(2)).sqrt();
+                assert!(
+                    (dist - r.abs()).abs() < 1e-6,
+                    "bulge {b}: sample {p:?} is {dist} from the centre, expected {}",
+                    r.abs()
+                );
+            }
+            let mid = pts[pts.len() / 2];
+            assert!(
+                mid.1 * b >= -1e-9,
+                "bulge {b}: arc bulges the wrong way (mid sample {mid:?})"
+            );
+        }
+    }
 
     /// Block content on layer "0" with BYBLOCK colour inherits the INSERT's
     /// layer and colour (ObjectARX semantics).

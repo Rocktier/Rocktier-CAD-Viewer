@@ -2669,7 +2669,7 @@ mod tests {
     /// a regression here means every door swing and fillet is detached again.
     #[test]
     fn bulge_arc_lands_on_the_far_endpoint() {
-        for &b in &[-2.0, -1.0, -0.5, -0.2, -0.05, 0.0, 0.05, 0.2, 0.4142, 0.5, 1.0, 2.0] {
+        for &b in &[-2.0f64, -1.0, -0.5, -0.2, -0.05, 0.0, 0.05, 0.2, 0.4142, 0.5, 1.0, 2.0] {
             let pts = arc_points(0.0, 0.0, 10.0, 0.0, b);
             assert!(
                 (pts[0].0).abs() < 1e-12 && (pts[0].1).abs() < 1e-12,
@@ -2688,7 +2688,7 @@ mod tests {
     /// minor arc must bulge to the side the sign of the bulge says.
     #[test]
     fn bulge_arc_lies_on_the_true_circle() {
-        for &b in &[-1.0, -0.5, -0.2, -0.05, 0.05, 0.2, 0.4142, 0.5, 1.0] {
+        for &b in &[-1.0f64, -0.5, -0.2, -0.05, 0.05, 0.2, 0.4142, 0.5, 1.0] {
             let theta = 4.0 * b.atan();
             let r = (10.0 / 2.0) / (theta / 2.0).sin();
             // Chord (0,0)→(10,0): midpoint (5,0), unit normal (0,1), centre offset r - s.

@@ -2600,6 +2600,14 @@ fn de_boor(u: f64, degree: i32, knots: &[f64], ctrl: &[(f64, f64)]) -> (f64, f64
         }
         if u < knots[i] { s = i.saturating_sub(1).max(k); break; }
     }
+    // clamp() panics when min > max, i.e. when a malformed SPLINE has no more control
+    // points than its degree (n - 1 < k). This crate is built with panic = "abort",
+    // so that panic took the whole app down instead of skipping one entity.
+    // The guard at the call site can be bypassed (degree >= control points with a
+    // non-monotonic knot vector), so bail out here too.
+    if n <= k {
+        return ctrl.first().copied().unwrap_or((0.0, 0.0));
+    }
     // Guard: `s` must allow `s - k..=s` to index ctrl safely.
     let s = s.clamp(k, n - 1);
     let mut d: Vec<(f64, f64)> = ctrl[s - k..=s].iter().copied().collect();

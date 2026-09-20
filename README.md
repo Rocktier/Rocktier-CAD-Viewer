@@ -3,6 +3,22 @@
 Fast, private, offline CAD viewer for DXF and DWG drawings. Tauri 2 + Svelte 5,
 WebGL hairlines with a 2D canvas overlay for text and measuring.
 
+## What it does
+
+| | |
+|---|---|
+| **Open** | `.dxf` directly; `.dwg` through a bundled `dwg2dxf` (LibreDWG) that feeds the same parser |
+| **Geometry** | LINE, ARC, CIRCLE, LWPOLYLINE / POLYLINE, ELLIPSE, SPLINE, POINT, TEXT / MTEXT, INSERT (block placement), DIMENSION (block expansion), LEADER, WIPEOUT masks, hatches with island handling |
+| **Layers** | Layer panel driven by the drawing's own LAYER table and colours |
+| **Paper space** | Each `*Paper_Space*` block as its own layout, model space projected through each VIEWPORT |
+| **Measure** | Measuring directly on the canvas |
+| **Open with** | `.dwg` / `.dxf` registered as document types; Windows/Linux hand files to the running window via the single-instance plugin |
+| **Private** | Fully offline. No network stack, no upload, no account, no telemetry |
+| **Fast** | WebGL hairlines plus a 2D canvas overlay for text, so large drawings stay interactive |
+
+What is *not* drawn is listed under [Known gaps](#known-gaps) rather than left for you
+to discover.
+
 ## Requirements
 
 - Node + npm

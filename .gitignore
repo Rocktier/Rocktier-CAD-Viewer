@@ -49,3 +49,7 @@ HANDOFF.md
 
 # CatPaw session context
 .zcode/
+
+# Editor-session worktrees. Currently only ignored by a global gitignore on this
+# machine, which means a fresh clone shows them as untracked noise.
+.meituan-catpaw/

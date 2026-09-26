@@ -115,6 +115,10 @@ body {
   fill: var(--red);
 }
 
+.brand-mark .brand-badge {
+  fill: #ffffff;
+}
+
 .brand-word {
   font-weight: 700;
   letter-spacing: -0.02em;

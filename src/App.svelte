@@ -208,7 +208,7 @@
           {/each}
         </span>
       {:else}
-        <span class="status-item"><i class="status-red"></i>{app.scene.meta.layouts[0]?.name ?? "—"}</span>
+        <span class="status-item"><i class="status-dot"></i>{app.scene.meta.layouts[0]?.name ?? "—"}</span>
       {/if}
       <span class="status-item">X {formatCoord(app.coords.x)}</span>
       <span class="status-item">Y {formatCoord(app.coords.y)}</span>
@@ -224,7 +224,7 @@
       <span class="status-item">{formatDuration(app.scene.meta.parse_ms + app.scene.meta.convert_ms)}{app.scene.meta.was_dwg ? " (dwg)" : ""}</span>
     {:else}
       {#if app.loading}
-        <span class="status-item"><i class="status-red"></i>{t("opening")}{#if app.progress.pct >= 0} {Math.round(app.progress.pct)}%{/if}</span>
+        <span class="status-item"><i class="status-dot"></i>{t("opening")}{#if app.progress.pct >= 0} {Math.round(app.progress.pct)}%{/if}</span>
       {:else}
         <span class="status-item"><i class="status-red"></i>{t("offline")}</span>
       {/if}

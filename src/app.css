@@ -706,6 +706,15 @@ body {
   flex: none;
 }
 
+/* 中性状态点：非错误的常态指示（布局名、加载进度）。红色留给真错误态。 */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  flex: none;
+}
+
 .status-muted {
   color: var(--text3);
 }

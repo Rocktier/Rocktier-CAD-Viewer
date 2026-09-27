@@ -15,7 +15,8 @@ dist-ssr
 # Rust build artifacts
 /target
 src-tauri/target
-src-tauri/Cargo.lock
+# src-tauri/Cargo.lock 不再忽略：不锁定 Rust 依赖会让 cargo 侧静默升级到
+# 新版 tauri，npm lock 还是旧版，MSIX 预检“版本不匹配”直接失败（v0.2.1 事故）。
 
 # Temp files produced by dwg2dxf conversion (never commit)
 rcv_dwg_*.dxf

@@ -32,6 +32,8 @@ export const app = $state({
   /** Live load progress from the Rust side: `pct` < 0 means indeterminate. */
   progress: { pct: -1, phase: "", detail: "" },
   error: "",
+  /** Last path handed to `openFile` — lets the error card offer a retry. */
+  lastPath: "",
   fileName: "",
   filePath: "",
   scene: null as Scene | null,
@@ -39,7 +41,8 @@ export const app = $state({
   hidden: new SvelteSet<number>(),
   tool: "pan" as Tool,
   measureResult: null as null | { x1: number; y1: number; x2: number; y2: number; dist: number },
-  coords: { x: 0, y: 0 },
+  /** Cursor position in world units; `null` while the pointer is off-canvas. */
+  coords: null as null | { x: number; y: number },
   zoomPct: 100,
   aboutOpen: false,
   exportOpen: false,
@@ -120,8 +123,12 @@ export function setStatus(msg: string) {
 
 export async function openFile(path: string) {
   // One load at a time: a second drop while a big drawing is parsing would
-  // race the first, and whichever finished last would win.
-  if (app.loading) return;
+  // race the first, and whichever finished last would win.  Say so instead of
+  // swallowing the request — a silent no-op reads as a broken button.
+  if (app.loading) {
+    setStatus(t("busyOpening"));
+    return;
+  }
   const lower = path.toLowerCase();
   if (!lower.endsWith(".dxf") && !lower.endsWith(".dwg")) {
     app.error = t("unsupportedFmt");
@@ -134,6 +141,7 @@ export async function openFile(path: string) {
   app.progress = { pct: 0, phase: wasDwg ? "convert" : "parse", detail: "" };
   app.fileName = path.split(/[\\/]/).pop() ?? path;
   app.filePath = path;
+  app.lastPath = path;
   // Subscribe before invoking: the backend emits phases from a worker thread.
   const unlisten = await listen<{ pct: number; phase: string; detail: string }>(
     "load-progress",
@@ -169,4 +177,9 @@ export async function openFile(path: string) {
     unlisten();
     app.loading = false;
   }
+}
+
+/** Re-open the drawing that just failed (error card "retry" action). */
+export function retryOpen() {
+  if (app.lastPath) void openFile(app.lastPath);
 }

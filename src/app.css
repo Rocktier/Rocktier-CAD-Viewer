@@ -17,6 +17,11 @@
   --on-accent: #000000;
   --accent-glow: rgba(255, 255, 255, 0.15);
   --red: #ff4a3d;
+  /* Wordmark dot: a quiet full stop, not a second red accent.  The single
+     brand-red pip lives inside the icon; red in the chrome means interactive
+     or error states only. */
+  --brand-dot: #181818;
+  --focus-ring: rgba(255, 255, 255, 0.65);
   --head-bg: rgba(0, 0, 0, 0.8);
   --radius-sm: 12px;
   --radius-md: 20px;
@@ -50,6 +55,23 @@ body {
 
 ::selection {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* Keyboard focus must be visible everywhere — the UI is mouse-first, but that
+   is no reason to strand keyboard users. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 ::-webkit-scrollbar {
@@ -131,7 +153,7 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--red);
+  background: var(--brand-dot);
   margin-left: 5px;
   vertical-align: 1px;
 }
@@ -228,6 +250,12 @@ body {
 .btn:hover {
   box-shadow: 0 0 30px var(--accent-glow);
   transform: translateY(-1px);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+  transform: none;
 }
 .btn svg {
   width: 15px;
@@ -527,6 +555,62 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Error card variant: remedies are full sentences, so let them wrap and give
+   the user retry / open-another actions instead of a truncated one-liner. */
+.toast.error {
+  max-width: min(560px, 84%);
+  align-items: flex-start;
+  padding: 14px 16px;
+}
+.toast.error i {
+  margin-top: 6px;
+}
+.toast-body {
+  min-width: 0;
+  flex: 1;
+}
+.toast-msg {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.toast-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.toast-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text2);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  min-height: 28px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.toast-btn:hover {
+  background: var(--card-hover);
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+.toast-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.toast-btn.primary:hover {
+  color: var(--on-accent);
+}
+.toast-close {
+  flex: none;
+  align-self: flex-start;
+}
+
 /* ---------------- layers panel ---------------- */
 
 .panel {
@@ -572,8 +656,11 @@ body {
   padding: 6px 10px;
   outline: none;
 }
+/* A border barely one step away from the resting state is invisible; the ring
+   makes keyboard focus obvious. */
 .panel-search:focus {
-  border-color: var(--border-hover);
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
 }
 .panel-search::placeholder {
   color: var(--text3);
@@ -622,8 +709,9 @@ body {
   background: none;
   border: none;
   color: var(--text3);
-  width: 26px;
-  height: 26px;
+  /* 28px minimum hit area — a 26px icon button is easy to miss. */
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
@@ -654,7 +742,9 @@ body {
   font-size: 0.72rem;
   font-family: var(--mono);
   cursor: pointer;
-  padding: 0;
+  /* Padding grows the hit area without moving the layout. */
+  padding: 6px 2px;
+  margin: -6px 0;
   letter-spacing: 0.06em;
 }
 .panel-link:hover {
@@ -686,6 +776,9 @@ body {
   letter-spacing: 0.04em;
   white-space: nowrap;
   overflow: hidden;
+  /* Coordinates and counts update live — tabular figures keep the row from
+     jittering as digits change. */
+  font-variant-numeric: tabular-nums;
 }
 
 .statusbar .grow {
@@ -744,6 +837,7 @@ body {
 .measure-banner b {
   color: var(--red);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------------- about dialog ---------------- */
@@ -903,7 +997,8 @@ body {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 2px 10px;
+  padding: 4px 11px;
+  min-height: 24px;
   cursor: pointer;
   white-space: nowrap;
 }

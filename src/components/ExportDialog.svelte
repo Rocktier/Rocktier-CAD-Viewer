@@ -11,11 +11,24 @@
 
   const FACTORS = [1, 2, 4] as const;
 
+  /** Escape closes the dialog — but never while a render is in flight, or the
+   *  busy flag would strand on an unmounted component. */
+  function onKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape" && app.exportOpen && !busy) {
+      e.stopPropagation();
+      app.exportOpen = false;
+    }
+  }
+
+  function requestClose() {
+    if (!busy) app.exportOpen = false;
+  }
+
   async function run() {
     if (!app.scene || busy) return;
     busy = true;
     try {
-      const path = await saveExport(
+      const { path, capped } = await saveExport(
         {
           scene: app.scene,
           layoutIdx: app.activeLayout,
@@ -31,7 +44,8 @@
       );
       if (path) {
         app.exportOpen = false;
-        setStatus(`${t("exportOk")} ${path.split(/[\\/]/).pop()}`);
+        const name = path.split(/[\\/]/).pop();
+        setStatus(capped ? `${t("exportOk")} ${name} · ${t("exportCapped")}` : `${t("exportOk")} ${name}`);
       }
     } catch (e) {
       setStatus(`${t("exportFail")}: ${e}`);
@@ -41,14 +55,16 @@
   }
 </script>
 
+<svelte:window onkeydown={onKeydown} />
+
 {#if app.exportOpen}
   <div
     class="modal-mask"
     role="button"
     tabindex="0"
     aria-label={t("close")}
-    onclick={() => (app.exportOpen = false)}
-    onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") app.exportOpen = false; }}
+    onclick={requestClose}
+    onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") requestClose(); }}
   >
     <div
       class="modal export-modal"
@@ -59,7 +75,7 @@
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => e.stopPropagation()}
     >
-      <button class="ghost modal-close" onclick={() => (app.exportOpen = false)} aria-label={t("close")}>✕</button>
+      <button class="ghost modal-close" onclick={requestClose} aria-label={t("close")}>✕</button>
       <h3 class="export-title">{t("exportTitle")}</h3>
 
       <div class="export-row">

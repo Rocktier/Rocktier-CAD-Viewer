@@ -110,7 +110,7 @@
     {/if}
 
     <div class="head-actions">
-      <button class="btn" onclick={pickFile}>{t("open")}</button>
+      <button class="btn" disabled={app.loading} onclick={pickFile}>{t("open")}</button>
       {#if app.scene}
         <button
           class="ghost"
@@ -210,8 +210,8 @@
       {:else}
         <span class="status-item"><i class="status-dot"></i>{app.scene.meta.layouts[0]?.name ?? "—"}</span>
       {/if}
-      <span class="status-item">X {formatCoord(app.coords.x)}</span>
-      <span class="status-item">Y {formatCoord(app.coords.y)}</span>
+      <span class="status-item">X {formatCoord(app.coords?.x ?? NaN)}</span>
+      <span class="status-item">Y {formatCoord(app.coords?.y ?? NaN)}</span>
       <span class="grow"></span>
       {#if app.scene.meta.skipped > 0}
         <span class="status-item status-muted" title={t("skippedHint")}>
@@ -226,7 +226,8 @@
       {#if app.loading}
         <span class="status-item"><i class="status-dot"></i>{t("opening")}{#if app.progress.pct >= 0} {Math.round(app.progress.pct)}%{/if}</span>
       {:else}
-        <span class="status-item"><i class="status-red"></i>{t("offline")}</span>
+        <!-- Offline is a feature, not a fault — neutral dot, red stays for errors. -->
+        <span class="status-item"><i class="status-dot"></i>{t("offline")}</span>
       {/if}
       <span class="grow"></span>
       <span class="status-item">v{VERSION}</span>

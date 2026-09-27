@@ -34,6 +34,8 @@
   /** Where the measure drag started on screen — tells a drag from a click. */
   let dragOrigin: { sx: number; sy: number } | null = null;
   let dragMoved = false;
+  /** Pointer travel (CSS px) that turns a press into a drag, not a jittery click. */
+  const DRAG_SLOP_PX = 5;
 
   const dpr = () => Math.min(window.devicePixelRatio || 1, 2.5);
 
@@ -261,7 +263,7 @@
 
   function onMove(e: MouseEvent) {
     const { p } = cursorAt(e);
-    if (dragOrigin && Math.hypot(p.sx - dragOrigin.sx, p.sy - dragOrigin.sy) > 3) {
+    if (dragOrigin && Math.hypot(p.sx - dragOrigin.sx, p.sy - dragOrigin.sy) > DRAG_SLOP_PX) {
       dragMoved = true;
     }
     if (dragging && last) {
@@ -288,7 +290,9 @@
   function onLeave() {
     cursorWorld = null;
     snapHit = null;
-    app.coords = { x: 0, y: 0 };
+    // `null`, not {0,0}: a drawing may legitimately contain the origin, and the
+    // status bar must show "—" (unknown) rather than a plausible-looking 0.000.
+    app.coords = null;
   }
 
   function onContext(e: MouseEvent) {
@@ -302,6 +306,11 @@
     if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
 
     if (e.key === "Escape") {
+      if (app.exportOpen) {
+        // The export dialog owns its Escape (it must ignore it while a render
+        // is running) — don't cancel the measure behind its back.
+        return;
+      }
       if (app.aboutOpen) {
         app.aboutOpen = false;
         return;

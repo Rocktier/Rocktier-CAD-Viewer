@@ -1,7 +1,7 @@
 <script lang="ts">
   import Viewer from "./Viewer.svelte";
   import EmptyState from "./EmptyState.svelte";
-  import { app } from "../lib/state.svelte";
+  import { app, retryOpen } from "../lib/state.svelte";
   import { t } from "../lib/i18n.svelte";
   import { formatDist } from "../lib/format";
 
@@ -58,10 +58,21 @@
     {/if}
 
     {#if app.error}
-      <div class="toast" role="alert">
+      <!-- An error card, not a one-line toast: backend remedies (install
+           LibreDWG, reinstall the app, file too large) are full sentences and
+           the user needs a way forward, so carry retry/open actions. -->
+      <div class="toast error" role="alert">
         <i></i>
-        <span>{app.error}</span>
-        <button class="ghost" style="width:26px;height:26px" onclick={() => (app.error = "")} aria-label={t("close")}>✕</button>
+        <div class="toast-body">
+          <span class="toast-msg">{app.error}</span>
+          <div class="toast-actions">
+            {#if app.lastPath}
+              <button class="toast-btn" onclick={retryOpen}>{t("retry")}</button>
+            {/if}
+            <button class="toast-btn primary" onclick={onOpen}>{t("openAnother")}</button>
+          </div>
+        </div>
+        <button class="ghost toast-close" onclick={() => (app.error = "")} aria-label={t("close")}>✕</button>
       </div>
     {/if}
   </div>

@@ -72,6 +72,8 @@ export interface RenderedExport {
   canvas: HTMLCanvasElement;
   width: number;
   height: number;
+  /** True when the requested resolution was clamped to `MAX_PX`. */
+  capped: boolean;
 }
 
 /**
@@ -86,7 +88,8 @@ export function renderScene(o: ExportOptions): RenderedExport {
   const spanX = Math.max(box.max_x - box.min_x, 1e-9);
   const spanY = Math.max(box.max_y - box.min_y, 1e-9);
   const baseLong = o.scope === "drawing" ? BASE_LONG_PX : Math.max(o.view.vw, o.view.vh, 1);
-  const long = Math.max(64, Math.min(Math.round(baseLong * o.factor), MAX_PX));
+  const requestedLong = Math.round(baseLong * o.factor);
+  const long = Math.max(64, Math.min(requestedLong, MAX_PX));
   const w = spanX >= spanY ? long : Math.max(1, Math.round((long * spanX) / spanY));
   const h = spanX >= spanY ? Math.max(1, Math.round((long * spanY) / spanX)) : long;
 
@@ -139,7 +142,7 @@ export function renderScene(o: ExportOptions): RenderedExport {
     // copying it in this same task avoids needing preserveDrawingBuffer.
     ctx.drawImage(gl, 0, 0);
     ctx.drawImage(textCanvas, 0, 0);
-    return { canvas: out, width: w, height: h };
+    return { canvas: out, width: w, height: h, capped: requestedLong > MAX_PX };
   } finally {
     renderer.dispose();
   }
@@ -172,13 +175,16 @@ function suggestedName(fileName: string, format: ExportFormat): string {
 }
 
 /**
- * Render, ask for a destination and write the file.
+ * Ask for a destination, then render and write the file.
  *
- * Returns the written path, or null when the user cancels the save dialog.
+ * The save dialog comes first: rendering a huge drawing offscreen is the
+ * expensive part, so cancelling there must not waste it.  Returns the written
+ * path (null when the user cancels) plus whether the resolution was capped.
  */
-export async function saveExport(o: ExportOptions, format: ExportFormat): Promise<string | null> {
-  const { canvas, width, height } = renderScene(o);
-  const blob = await toBlob(canvas, format);
+export async function saveExport(
+  o: ExportOptions,
+  format: ExportFormat,
+): Promise<{ path: string | null; capped: boolean }> {
   const path = await save({
     defaultPath: suggestedName(o.fileName, format),
     filters:
@@ -186,9 +192,11 @@ export async function saveExport(o: ExportOptions, format: ExportFormat): Promis
         ? [{ name: "PNG", extensions: ["png"] }]
         : [{ name: "PDF", extensions: ["pdf"] }],
   });
-  if (!path) return null;
+  if (!path) return { path: null, capped: false };
+  const { canvas, width, height, capped } = renderScene(o);
+  const blob = await toBlob(canvas, format);
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  return (await invoke("save_export", {
+  const written = (await invoke("save_export", {
     path,
     dataBase64: toBase64(bytes),
     kind: format,
@@ -196,4 +204,5 @@ export async function saveExport(o: ExportOptions, format: ExportFormat): Promis
     pxH: height,
     title: o.fileName,
   })) as string;
+  return { path: written, capped };
 }

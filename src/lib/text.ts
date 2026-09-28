@@ -109,7 +109,7 @@ export function drawTexts(
     const fill =
       opts.mono || item.a === 0 ? opts.autoColor : `rgb(${item.r},${item.g},${item.b})`;
     ctx.fillStyle = fill;
-    ctx.font = `${hPx.toFixed(2)}px -apple-system, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif`;
+    ctx.font = `${hPx.toFixed(2)}px "Geist", -apple-system, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif`;
 
     let { ha, va } = item;
     let rot = item.rot;

@@ -42,6 +42,9 @@
   --dot-size: 22px;
   --focus-ring: rgba(255, 255, 255, 0.65);
   --head-bg: rgba(0, 0, 0, 0.8);
+  --selection: rgba(255, 255, 255, 0.15);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --focus-glow: rgba(255, 255, 255, 0.14);
   --radius-sm: 12px;
   --radius-md: 20px;
   --radius-lg: 28px;
@@ -49,6 +52,34 @@
   --font: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto,
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif;
   --mono: "Geist Mono", "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, monospace;
+}
+
+/* ── Light theme（界面主题） ──────────────────────────────────────────────
+   只反转界面配色。画布另有一套导出配色（dark / print，见 ExportDialog 的
+   exportTheme）——那是"图纸主题"，不是"界面主题"，两者互不干扰。
+   未在此重定义的令牌（圆角/字体/点阵尺寸等）自动沿用 :root 深色档。 */
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --card: rgba(0, 0, 0, 0.03);
+  --card-hover: rgba(0, 0, 0, 0.06);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.16);
+  --text: rgba(0, 0, 0, 0.95);
+  --text2: rgba(0, 0, 0, 0.72);
+  --text3: rgba(0, 0, 0, 0.58);
+  --accent: #000000;
+  --on-accent: #ffffff;
+  --accent-glow: rgba(0, 0, 0, 0.08);
+  /* 品牌红保持 #ff4a3d：brand-pip 是家族签名的红点，不得降为 danger 色 */
+  --red: #ff4a3d;
+  /* 字标 tile 两种主题都保持深色（匹配 Dock 图标），故 letters/badge 仍为白 */
+  --brand-dot: #181818;
+  --focus-ring: rgba(0, 0, 0, 0.45);
+  --head-bg: rgba(255, 255, 255, 0.8);
+  --selection: rgba(0, 0, 0, 0.12);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --focus-glow: rgba(0, 0, 0, 0.12);
 }
 
 * {
@@ -74,7 +105,7 @@ body {
 }
 
 ::selection {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--selection);
 }
 
 /* Keyboard focus must be visible everywhere — the UI is mouse-first, but that
@@ -102,7 +133,7 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
@@ -440,7 +471,7 @@ body {
   border: 1px solid var(--border);
   background: var(--card);
   padding: 4px 12px;
-  border-radius: 100px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: all 0.15s;
   max-width: 260px;
@@ -505,14 +536,14 @@ body {
   height: 6px;
   margin: 0 auto 16px;
   background: var(--border);
-  border-radius: 100px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   background: var(--red);
-  border-radius: 100px;
+  border-radius: var(--radius-pill);
   transition: width 0.15s linear;
 }
 
@@ -681,7 +712,7 @@ body {
    makes keyboard focus obvious. */
 .panel-search:focus {
   border-color: var(--focus-ring);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 3px var(--focus-glow);
 }
 .panel-search::placeholder {
   color: var(--text3);
@@ -843,7 +874,7 @@ body {
   background: var(--head-bg);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
-  border-radius: 100px;
+  border-radius: var(--radius-pill);
   padding: 7px 18px;
   font-family: var(--mono);
   font-size: 0.74rem;

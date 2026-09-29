@@ -23,6 +23,13 @@ pub fn build(app: &tauri::AppHandle, lang: &str) -> tauri::Result<()> {
         None::<&str>,
     )?;
     let panel_i = MenuItem::with_id(app, "panel", l("图层面板", "Layers Panel"), true, None::<&str>)?;
+    let theme_i = MenuItem::with_id(
+        app,
+        "theme",
+        l("切换深浅主题", "Toggle Theme"),
+        true,
+        None::<&str>,
+    )?;
     let site_i = MenuItem::with_id(app, "website", l("官方网站", "Website"), true, None::<&str>)?;
     let mail_i = MenuItem::with_id(app, "feedback", l("反馈", "Feedback"), true, None::<&str>)?;
 
@@ -74,7 +81,13 @@ pub fn build(app: &tauri::AppHandle, lang: &str) -> tauri::Result<()> {
         app,
         l("显示", "View"),
         true,
-        &[&fit_i, &core_i, &PredefinedMenuItem::separator(app)?, &panel_i],
+        &[
+            &fit_i,
+            &core_i,
+            &PredefinedMenuItem::separator(app)?,
+            &panel_i,
+            &theme_i,
+        ],
     )?;
 
     let window_menu = Submenu::with_items(

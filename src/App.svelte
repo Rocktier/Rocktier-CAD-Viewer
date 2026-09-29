@@ -27,6 +27,28 @@
     app.tool = app.tool === "measure" ? "pan" : "measure";
   }
 
+  /* ── 界面主题（深色为家族默认，显示菜单可切换，选择记在本机） ──
+     注意与"图纸主题"区分：导出时的 dark / print 是画布配色（见 ExportDialog），
+     这里的 data-theme 只管界面外壳。 */
+  const THEME_KEY = "rocktier-cad-ui-theme";
+  let uiTheme = $state<"dark" | "light">("dark");
+
+  function applyUiTheme(mode: "dark" | "light") {
+    uiTheme = mode;
+    if (mode === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+  }
+
+  function toggleUiTheme() {
+    const next: "dark" | "light" = uiTheme === "light" ? "dark" : "light";
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      /* 隐私模式下写不了 localStorage，仅本次会话生效 */
+    }
+    applyUiTheme(next);
+  }
+
   /** Open a drawing the OS handed us (file association / "Open with"). */
   function openFirst(paths: string[] | null | undefined) {
     if (!paths?.length) return;
@@ -35,6 +57,8 @@
   }
 
   onMount(() => {
+    // 恢复上次选择的界面主题（深色是家族默认）
+    applyUiTheme(localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark");
     const unlisteners: Array<() => void> = [];
     let cancelled = false;
     let dragTimer: ReturnType<typeof setTimeout> | undefined;
@@ -69,6 +93,7 @@
           case "fit": app.fitTick++; break;
           case "fit-core": app.fitCoreTick++; break;
           case "panel": app.panelOpen = !app.panelOpen; break;
+          case "theme": toggleUiTheme(); break;
           case "website": void invoke("open_url", { url: "https://rocktier.com/" }).catch(() => {}); break;
           case "feedback": void invoke("open_url", { url: "mailto:hello@rocktier.com" }).catch(() => {}); break;
         }

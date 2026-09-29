@@ -37,7 +37,14 @@ pub async fn open_drawing(app: tauri::AppHandle, path: String) -> Result<Respons
 /// URL opener.
 #[tauri::command]
 pub fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
-    const ALLOWED: [&str; 3] = ["https://rocktier.com/", "https://www.rocktier.com/", "mailto:"];
+    const ALLOWED: [&str; 4] = [
+        "https://rocktier.com/",
+        "https://www.rocktier.com/",
+        // GPL-3.0 requires the corresponding source to be offered, and the About
+        // dialog links to it — so the family repo root has to be reachable.
+        "https://github.com/Rocktier/",
+        "mailto:",
+    ];
     if !ALLOWED.iter().any(|p| url.starts_with(p)) {
         return Err(format!("blocked url: {url}"));
     }

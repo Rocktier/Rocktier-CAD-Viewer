@@ -9,15 +9,21 @@
   /* GPL-3.0 requires the corresponding source to be offered, and the trademark
      notice belongs where a user can actually read it. */
   const SOURCE = "https://github.com/Rocktier/Rocktier-CAD-Viewer";
-  const NOTICES = `${SOURCE}/blob/master/THIRD-PARTY-NOTICES.md`;
+  const NOTICES = `${SOURCE}/blob/main/THIRD-PARTY-NOTICES.md`;
+
+  /** Set when the OS (or the allow-list) refuses, so the failure is visible. */
+  let failedUrl = $state("");
 
   /** Hand the link to the OS; the webview itself must not navigate. */
   async function openExternal(e: MouseEvent, url: string) {
     e.preventDefault();
     try {
       await invoke("open_url", { url });
+      failedUrl = "";
     } catch {
-      /* nothing useful to do if the OS refuses */
+      // The allow-list can legitimately refuse (a link we forgot to register);
+      // surface it instead of swallowing it silently.
+      failedUrl = url;
     }
   }
 </script>
@@ -57,6 +63,30 @@
         <a href={SOURCE} onclick={(e) => openExternal(e, SOURCE)}>{t("sourceCode")}</a>
         <a href={NOTICES} onclick={(e) => openExternal(e, NOTICES)}>{t("thirdParty")}</a>
       </p>
+      {#if failedUrl}
+        <p class="about-open-failed" role="alert">
+          {t("openFailed")}
+          <code>{failedUrl}</code>
+        </p>
+      {/if}
     </div>
   </div>
 {/if}
+
+<style>
+  .about-open-failed {
+    margin-top: 12px;
+    font-size: 0.68rem;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+  .about-open-failed code {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    color: var(--text3);
+    word-break: break-all;
+    user-select: all;
+  }
+</style>

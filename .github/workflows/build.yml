@@ -2,7 +2,7 @@ name: Build & Release
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -71,8 +71,8 @@ jobs:
           cp "$HOME/Downloads/Rocktier CAD Viewer.dmg" "Rocktier-CAD-Viewer_${VERSION}_aarch64.dmg"
           ls -lh "Rocktier-CAD-Viewer_${VERSION}_aarch64.dmg"
 
-      - name: Upload artifact (master branch)
-        if: github.ref == 'refs/heads/master'
+      - name: Upload artifact (main branch)
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: Rocktier-CAD-Viewer-macos-aarch64
@@ -147,8 +147,8 @@ jobs:
       - name: Build MSIX (Microsoft Store)
         run: npm run tauri:windows:build
 
-      - name: Upload artifacts (master branch)
-        if: github.ref == 'refs/heads/master'
+      - name: Upload artifacts (main branch)
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: Rocktier-CAD-Viewer-windows-x64

@@ -1,11 +1,13 @@
 #!/bin/bash
 # Rocktier CAD Viewer — Icon generation script
-# Generates all platform icon formats from icon.svg
+# Generates all platform icon formats from 1024x1024.png (PNG master)
 #
 # Dependencies:
-#   - rsvg-convert  (brew install librsvg) OR Inkscape
+#   - sips (macOS built-in) OR ImageMagick (brew install imagemagick) for resize
 #   - ImageMagick    (brew install imagemagick) for .ico
 #   - iconutil (macOS built-in) for .icns
+#
+# NOTE: 品牌图标自 2026-10 起为位图母版（GPT 生成），不再有 icon.svg 矢量源。
 #
 # Usage: cd src-tauri/icons && bash generate.sh
 
@@ -14,7 +16,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-SRC="icon.svg"
+SRC="1024x1024.png"
 OUT_DIR="out"
 ICONSET_DIR=".iconset"
 
@@ -28,13 +30,15 @@ mkdir -p "$OUT_DIR" "$ICONSET_DIR"
 echo "  Rendering PNG sizes..."
 SIZES=(16 24 32 48 64 128 256 512 1024)
 for size in "${SIZES[@]}"; do
-  if command -v rsvg-convert &>/dev/null; then
-    rsvg-convert -w "$size" -h "$size" "$SRC" > "$OUT_DIR/icon-${size}.png"
-  elif command -v inkscape &>/dev/null; then
-    inkscape --export-type=png --export-width="$size" --export-height="$size" \
-             --export-filename="$OUT_DIR/icon-${size}.png" "$SRC" 2>/dev/null
+  if command -v sips &>/dev/null; then
+    cp "$SRC" "$OUT_DIR/icon-${size}.png"
+    sips -z "$size" "$size" "$OUT_DIR/icon-${size}.png" >/dev/null
+  elif command -v magick &>/dev/null; then
+    magick "$SRC" -resize "${size}x${size}" "$OUT_DIR/icon-${size}.png"
+  elif command -v convert &>/dev/null; then
+    convert "$SRC" -resize "${size}x${size}" "$OUT_DIR/icon-${size}.png"
   else
-    echo "ERROR: Need rsvg-convert or Inkscape to render PNG"
+    echo "ERROR: Need sips (macOS) or ImageMagick to resize PNG"
     exit 1
   fi
   echo "    ✓ icon-${size}.png"

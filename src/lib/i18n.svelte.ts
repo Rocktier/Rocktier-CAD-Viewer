@@ -38,7 +38,9 @@ const zh: Dict = {
   solidDesc: "十年寿命，无锁定",
   feedback: "反馈",
   website: "官网",
-  gpl: "本应用以 GPL-3.0 开源（DXF/DWG 解析依赖自由软件）。",
+  // 必须与仓库 LICENSE 文件一致（LICENSE = MIT；dwg2dxf 是独立进程，不触发 copyleft）
+  gpl:
+    "本应用以 MIT 许可发布。DWG/DXF 解析通过独立进程调用 LibreDWG 的 dwg2dxf（GPL-3.0-or-later）。",
   trademarkNote:
     "Rocktier CAD Viewer 是独立产品，与 Autodesk, Inc. 无隶属、背书或赞助关系。DWG、DXF、AutoCAD 是 Autodesk, Inc. 的商标或注册商标，此处仅用于说明本应用可打开的文件格式。",
   sourceCode: "源代码",
@@ -49,7 +51,7 @@ const zh: Dict = {
   texts: "文字",
   skipped: "未绘制图元",
   skippedHint:
-    "Hatch fills and solids now render; this counts what is still undrawn: leaders/multileaders, WIPEOUT masks and unresolved xref blocks.",
+    "填充与实体现已绘制；此处统计的是仍未绘制的部分：引线/多重引线、WIPEOUT 遮罩，以及未解析的外部参照块。",
   exportTitle: "导出",
   exportScope: "范围",
   exportScopeDrawing: "整张图纸",

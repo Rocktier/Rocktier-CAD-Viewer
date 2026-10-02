@@ -148,11 +148,16 @@ fn parse_dwg(path: &Path, report: Reporter) -> Result<(SceneMeta, Vec<u8>), Stri
         SEQ.fetch_add(1, Ordering::Relaxed)
     ));
 
+    let err_path = std::env::temp_dir().join(format!(
+        "rocktier-dwg2dxf-{}-{}.err",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     let t0 = Instant::now();
     // 不能无限等待：dwg2dxf 在损坏 DWG / 网络盘上可能一直卡住，前端会永远停在
-    // 加载态且无法取消。这里给 120s 上限，超时就杀掉并报错。
-    let output = (|| -> Result<std::process::Output, String> {
-        use std::sync::mpsc::channel;
+    // 加载态且无法取消。这里给 120s 上限，超时就杀掉并回收子进程，绝不残留。
+    let status = (|| -> Result<std::process::ExitStatus, String> {
+        use std::process::Stdio;
         let mut cmd = Command::new(cli_bin("dwg2dxf"));
         cmd.arg("-y").arg("-o").arg(&dxf_path).arg(path);
         // dwg2dxf is a console program: without CREATE_NO_WINDOW every DWG load
@@ -163,7 +168,19 @@ fn parse_dwg(path: &Path, report: Reporter) -> Result<(SceneMeta, Vec<u8>), Stri
             const CREATE_NO_WINDOW: u32 = 0x0800_0000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
-        let child = cmd
+        // Isolate the child in its own process group (Unix) so a timeout can tear
+        // down any helpers it spawns, not just the root process.
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            cmd.process_group(0);
+        }
+        // Capture stderr to a file so we can still surface the real error line
+        // without blocking the main thread on the child's output streams.
+        let err_file = std::fs::File::create(&err_path)
+            .map_err(|e| format!("无法创建错误日志: {e}"))?;
+        cmd.stderr(Stdio::from(err_file)).stdout(Stdio::null());
+        let mut child = cmd
             .spawn()
             .map_err(|e| {
                 if cfg!(windows) {
@@ -172,42 +189,43 @@ fn parse_dwg(path: &Path, report: Reporter) -> Result<(SceneMeta, Vec<u8>), Stri
                     format!("启动 dwg2dxf 失败: {e}（需要 LibreDWG：brew install libredwg）")
                 }
             })?;
-        let (tx, rx) = channel();
-        std::thread::spawn(move || {
-            let _ = tx.send(child.wait_with_output());
-        });
-        // Poll instead of one long recv_timeout: dwg2dxf writes the DXF
-        // progressively, so the growing file is a real signal to show the user
-        // (bytes written) even though the total is unknown.
-        let mut waited_ms = 0u64;
+        let start = std::time::Instant::now();
+        // Poll instead of one long wait: dwg2dxf writes the DXF progressively,
+        // so the growing file is a real signal to show the user (bytes written)
+        // even though the total is unknown.
         loop {
-            match rx.recv_timeout(std::time::Duration::from_millis(120)) {
-                Ok(Ok(out)) => break Ok(out),
-                Ok(Err(e)) => break Err(format!("读取 dwg2dxf 输出失败: {e}")),
-                Err(_) => {
-                    waited_ms += 120;
-                    if waited_ms >= 120_000 {
+            match child.try_wait().map_err(|e| format!("轮询 dwg2dxf 失败: {e}"))? {
+                Some(s) => break Ok(s),
+                None => {
+                    if start.elapsed().as_millis() as u64 >= 120_000 {
+                        // Timeout: kill the child (and its group) and reap it so
+                        // it never lingers as an orphan still holding the temp DXF.
+                        let _ = child.kill();
+                        let _ = child.wait();
                         let _ = std::fs::remove_file(&dxf_path);
-                        break Err("dwg2dxf 转换超时（120 秒），文件可能已损坏".to_string());
+                        let _ = std::fs::remove_file(&err_path);
+                        return Err("dwg2dxf 转换超时（120 秒），文件可能已损坏".to_string());
                     }
                     let written = std::fs::metadata(&dxf_path).map(|m| m.len()).unwrap_or(0);
                     report(-1.0, "convert", &format!("{:.1} MB", written as f64 / 1_048_576.0));
+                    std::thread::sleep(std::time::Duration::from_millis(120));
                 }
             }
         }
     })()?;
     let convert_ms = t0.elapsed().as_millis() as u64;
 
-    if !output.status.success() {
-        let _ = std::fs::remove_file(&dxf_path);
-        let err_text = String::from_utf8_lossy(&output.stderr);
+    if !status.success() {
+        let err_text = std::fs::read_to_string(&err_path).unwrap_or_default();
         let first_err = err_text.lines().next().unwrap_or("(no message)");
+        let _ = std::fs::remove_file(&err_path);
         return Err(format!(
             "dwg2dxf 退出码 {:?}: {}",
-            output.status.code(),
+            status.code(),
             first_err
         ));
     }
+    let _ = std::fs::remove_file(&err_path);
 
     // 只查输入体积不够：dwg2dxf 产出的 DXF 常常是 DWG 的数倍，会把 1GB+ 直接读进内存
     if let Ok(m) = std::fs::metadata(&dxf_path) {

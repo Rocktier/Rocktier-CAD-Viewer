@@ -60,7 +60,7 @@ pub fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
 /// PDF path, where the bytes are embedded as a `/DCTDecode` image without
 /// re-encoding.  Returns the path actually written.
 #[tauri::command]
-pub fn save_export(
+pub async fn save_export(
     path: String,
     data_base64: String,
     kind: String,
@@ -68,29 +68,35 @@ pub fn save_export(
     px_h: u32,
     title: String,
 ) -> Result<String, String> {
-    use base64::Engine as _;
-    // A 40 MB ceiling: an export this large is a mistake, not a drawing.
-    const MAX_BYTES: usize = 40 * 1024 * 1024;
-    if data_base64.len() > MAX_BYTES * 2 {
-        return Err("导出数据过大".into());
-    }
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(data_base64.as_bytes())
-        .map_err(|e| format!("数据解码失败: {e}"))?;
-    if bytes.is_empty() {
-        return Err("导出数据为空".into());
-    }
-    let out = match kind.as_str() {
-        "png" => bytes,
-        "pdf" => crate::pdf::jpeg_page(&bytes, px_w, px_h, &title)?,
-        other => return Err(format!("不支持的导出格式: {other}")),
-    };
-    let p = Path::new(&path);
-    if let Some(dir) = p.parent() {
-        if !dir.as_os_str().is_empty() {
-            std::fs::create_dir_all(dir).map_err(|e| format!("无法创建目录: {e}"))?;
+    // Run the decode + write off the command thread so the UI never freezes
+    // while a large export is being encoded to disk.
+    tauri::async_runtime::spawn_blocking(move || {
+        use base64::Engine as _;
+        // A 40 MB ceiling: an export this large is a mistake, not a drawing.
+        const MAX_BYTES: usize = 40 * 1024 * 1024;
+        if data_base64.len() > MAX_BYTES * 2 {
+            return Err("导出数据过大".into());
         }
-    }
-    std::fs::write(p, &out).map_err(|e| format!("写入失败: {e}"))?;
-    Ok(path)
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(data_base64.as_bytes())
+            .map_err(|e| format!("数据解码失败: {e}"))?;
+        if bytes.is_empty() {
+            return Err("导出数据为空".into());
+        }
+        let out = match kind.as_str() {
+            "png" => bytes,
+            "pdf" => crate::pdf::jpeg_page(&bytes, px_w, px_h, &title)?,
+            other => return Err(format!("不支持的导出格式: {other}")),
+        };
+        let p = Path::new(&path);
+        if let Some(dir) = p.parent() {
+            if !dir.as_os_str().is_empty() {
+                std::fs::create_dir_all(dir).map_err(|e| format!("无法创建目录: {e}"))?;
+            }
+        }
+        std::fs::write(p, &out).map_err(|e| format!("写入失败: {e}"))?;
+        Ok(path)
+    })
+    .await
+    .map_err(|e| format!("导出任务失败: {e}"))?
 }

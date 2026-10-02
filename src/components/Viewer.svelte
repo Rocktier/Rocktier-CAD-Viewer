@@ -4,7 +4,7 @@
   import { Renderer } from "../lib/renderer";
   import { Camera, checkProjection } from "../lib/camera";
   import { drawTexts, drawMeasure, syncCanvasSize } from "../lib/text";
-  import { formatDist } from "../lib/format";
+  import { formatDist, unitLabel } from "../lib/format";
   import { t } from "../lib/i18n.svelte";
   import { buildSnapIndex, nearestSnap, SNAP_PX, type SnapHit, type SnapIndex } from "../lib/snap";
 
@@ -80,6 +80,7 @@
     // reactivity graph quiet (nothing renders from these numbers).
     app.camera = { cx: cam.cx, cy: cam.cy, scale: cam.scale, vw: cam.vw, vh: cam.vh };
     const th = themeColors();
+    const unit = unitLabel(app.scene.meta.insunits);
     if (glUsable) {
       checkProjection(cam);
       renderer.draw(glCanvas, cam, app.activeLayout, {
@@ -106,9 +107,9 @@
           dpr: dpr(),
           red: th.red,
           label: app.measureResult
-            ? formatDist(app.measureResult.dist)
+            ? formatDist(app.measureResult.dist, unit)
             : pending && cursorWorld
-              ? formatDist(Math.hypot(cursorWorld.x - pending.x, cursorWorld.y - pending.y))
+              ? formatDist(Math.hypot(cursorWorld.x - pending.x, cursorWorld.y - pending.y), unit)
               : null,
           snapLabel: snapHit
             ? t(snapHit.kind === "midpoint" ? "snapMidpoint" : "snapEndpoint")

@@ -148,6 +148,16 @@ export function renderScene(o: ExportOptions): RenderedExport {
   }
 }
 
+/**
+ * Yield to the compositor: one rAF hands the current frame to the GPU, a second
+ * lets the style/paint pipeline actually draw it.  Used around the long
+ * synchronous stretches of the export so the busy state ("导出中…", disabled
+ * button) is visibly painted instead of being swallowed by the freeze.
+ */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 function toBlob(canvas: HTMLCanvasElement, format: ExportFormat): Promise<Blob> {
   const type = format === "png" ? "image/png" : "image/jpeg";
   return new Promise((resolve, reject) => {
@@ -193,7 +203,16 @@ export async function saveExport(
         : [{ name: "PDF", extensions: ["pdf"] }],
   });
   if (!path) return { path: null, capped: false };
+  // `renderScene` below is one long synchronous task (WebGL + 2D text + copies)
+  // and can hold the main thread for seconds.  It is *not* async, so the busy
+  // state set by the dialog only paints if we hand frames back first — two rAFs
+  // here make "导出中…" appear before the freeze, one more before `toBlob`
+  // (encoding a huge canvas is a long task too).  Mitigation, not a cure: the
+  // real fix is OffscreenCanvas + Worker, deliberately out of scope.
+  await nextFrame();
+  await nextFrame();
   const { canvas, width, height, capped } = renderScene(o);
+  await nextFrame();
   const blob = await toBlob(canvas, format);
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const written = (await invoke("save_export", {

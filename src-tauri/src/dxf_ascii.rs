@@ -129,6 +129,9 @@ struct State {
     layer_ltype: std::collections::HashMap<String, String>,
     /// Global linetype scale ($LTSCALE); 1.0 when the header omits it.
     ltscale: f64,
+    /// Drawing units ($INSUNITS, header group 70); 0 = unitless / unspecified.
+    /// Surfaced in SceneMeta so the UI can label coordinates and measurements.
+    insunits: i32,
     /// STYLE table: text style name → width factor (group 41).  Chinese
     /// drawings lean on condensed styles (0.5…0.8) for labels and dimension
     /// text; drawing them at 1.0 makes every such note visibly too wide.
@@ -189,6 +192,7 @@ impl State {
             ltype_defs: std::collections::HashMap::new(),
             layer_ltype: std::collections::HashMap::new(),
             ltscale: 1.0,
+            insunits: 0,
             style_width: std::collections::HashMap::new(),
             blocks: std::collections::HashMap::new(),
             xf: (0.0, 0.0, 1.0, 1.0, 0.0),
@@ -411,6 +415,9 @@ impl State {
         self.layer_ltype = layer_ltype;
         self.ltype_defs = scan_ltype_table(input);
         self.ltscale = scan_header_var(input, "LTSCALE", 1.0);
+        // Whole-number code (1=in … 6=m); round() absorbs float fuzz from the
+        // text pre-scan, out-of-range codes degrade to "unitless" on the UI side.
+        self.insunits = scan_header_var(input, "INSUNITS", 0.0).round() as i32;
         self.style_width = scan_style_table(input);
         self.blocks = scan_blocks(input);
 
@@ -1592,6 +1599,7 @@ impl State {
             convert_ms,
             was_dwg,
             skipped: self.skipped,
+            insunits: self.insunits,
         };
         Ok((meta, geometry))
     }
@@ -2787,5 +2795,21 @@ mod tests {
         // UI 永远停在加载态。这条测试在修复前会直接卡死。
         let pts = arc_pts_angle(0.0, 0.0, 1.0, 1.0, 0.0, 1e300, 0.0);
         assert!(pts.len() >= 2, "圆弧仍应被采样出来");
+    }
+
+    /// $INSUNITS（header 组码 70）要进 SceneMeta：前端靠它给坐标/测量加单位后缀。
+    /// 缺省时必须是 0（unitless），而不是 1 之类的误报。
+    #[test]
+    fn header_insunits_reaches_meta() {
+        let dxf = "\
+0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n\
+0\nSECTION\n2\nENTITIES\n0\nLINE\n8\nL1\n10\n0\n20\n0\n11\n1\n21\n0\n\
+0\nENDSEC\n0\nEOF\n";
+        let (meta, _) = parse_and_build(dxf, 0, false, 0).unwrap();
+        assert_eq!(meta.insunits, 4, "$INSUNITS = 4 (mm) must surface in meta");
+
+        let plain = "0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n";
+        let (meta, _) = parse_and_build(plain, 0, false, 0).unwrap();
+        assert_eq!(meta.insunits, 0, "no header var means unitless");
     }
 }

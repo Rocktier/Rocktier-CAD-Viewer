@@ -3,7 +3,7 @@
   import EmptyState from "./EmptyState.svelte";
   import { app, retryOpen } from "../lib/state.svelte";
   import { t } from "../lib/i18n.svelte";
-  import { formatDist } from "../lib/format";
+  import { formatDist, unitLabel } from "../lib/format";
 
   type Props = { onOpen: () => void };
   let { onOpen }: Props = $props();
@@ -52,7 +52,7 @@
       <div class="measure-banner">
         <span>{t("measuring")}</span>
         {#if app.measureResult}
-          <b>{t("measured")} {formatDist(app.measureResult.dist)}</b>
+          <b>{t("measured")} {formatDist(app.measureResult.dist, unitLabel(app.scene?.meta.insunits))}</b>
         {/if}
       </div>
     {/if}

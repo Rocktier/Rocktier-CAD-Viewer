@@ -1,3 +1,4 @@
+@import './styles/tokens.css';
 /* Geist 家族品牌字体（2026-09-28 定案，audit 7B-5；SIL OFL 自托管可变字体） */
 @font-face {
   font-family: "Geist";

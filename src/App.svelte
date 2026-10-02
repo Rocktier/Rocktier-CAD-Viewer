@@ -11,7 +11,7 @@
   import ExportDialog from "./components/ExportDialog.svelte";
   import { app, openFile, setStatus, setLang, setUprightText } from "./lib/state.svelte";
   import { t } from "./lib/i18n.svelte";
-  import { formatCoord, formatCount, formatDuration } from "./lib/format";
+  import { formatCoord, formatCount, formatDuration, unitLabel } from "./lib/format";
 
   const VERSION = __APP_VERSION__;
 
@@ -235,8 +235,8 @@
       {:else}
         <span class="status-item"><i class="status-dot"></i>{app.scene.meta.layouts[0]?.name ?? "—"}</span>
       {/if}
-      <span class="status-item">X {formatCoord(app.coords?.x ?? NaN)}</span>
-      <span class="status-item">Y {formatCoord(app.coords?.y ?? NaN)}</span>
+      <span class="status-item">X {formatCoord(app.coords?.x ?? NaN, unitLabel(app.scene?.meta.insunits))}</span>
+      <span class="status-item">Y {formatCoord(app.coords?.y ?? NaN, unitLabel(app.scene?.meta.insunits))}</span>
       <span class="grow"></span>
       {#if app.scene.meta.skipped > 0}
         <span class="status-item status-muted" title={t("skippedHint")}>

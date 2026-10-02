@@ -71,6 +71,8 @@ export interface SceneMeta {
   was_dwg: boolean;
   /** Entities recognised but not renderable (HATCH, unresolved INSERT, …). */
   skipped: number;
+  /** $INSUNITS from the DXF header (0 = unitless / unspecified). */
+  insunits?: number;
 }
 
 /**

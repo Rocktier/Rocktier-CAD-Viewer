@@ -3,24 +3,45 @@
 /** Not-a-number and infinities must never reach the status bar. */
 const DASH = "—";
 
-export function formatCoord(v: number): string {
-  if (!Number.isFinite(v)) return DASH;
-  const a = Math.abs(v);
-  if (a >= 100000) return v.toFixed(0);
-  if (a >= 1000) return v.toFixed(1);
-  if (a >= 1) return v.toFixed(2);
-  return v.toFixed(3);
+/**
+ * Unit suffix per DXF $INSUNITS code.  Only the codes CAD drawings actually
+ * carry are labelled; 0 (and any unrecognised code) means unitless — no suffix,
+ * like AutoCAD itself plots then.
+ */
+const INSUNITS_SUFFIX: Record<number, string> = { 1: "in", 2: "ft", 4: "mm", 5: "cm", 6: "m" };
+
+/** Suffix for the drawing's declared unit ("" when unitless / unknown). */
+export function unitLabel(insunits: number | undefined): string {
+  return (insunits !== undefined && INSUNITS_SUFFIX[insunits]) || "";
 }
 
-export function formatDist(d: number): string {
+/** Append the unit, separated by a space ("12.34 mm"); bare when unitless. */
+function withUnit(v: string, unit: string): string {
+  return unit ? `${v} ${unit}` : v;
+}
+
+export function formatCoord(v: number, unit = ""): string {
+  if (!Number.isFinite(v)) return DASH;
+  const a = Math.abs(v);
+  const s =
+    a >= 100000 ? v.toFixed(0)
+    : a >= 1000 ? v.toFixed(1)
+    : a >= 1 ? v.toFixed(2)
+    : v.toFixed(3);
+  return withUnit(s, unit);
+}
+
+export function formatDist(d: number, unit = ""): string {
   if (!Number.isFinite(d)) return DASH;
   const a = Math.abs(d);
-  if (a === 0) return "0";
-  if (a >= 100000) return d.toFixed(0);
-  if (a >= 1000) return d.toFixed(1);
-  if (a >= 1) return d.toFixed(2);
-  if (a >= 0.01) return d.toFixed(3);
-  return d.toExponential(2);
+  let s: string;
+  if (a === 0) s = "0";
+  else if (a >= 100000) s = d.toFixed(0);
+  else if (a >= 1000) s = d.toFixed(1);
+  else if (a >= 1) s = d.toFixed(2);
+  else if (a >= 0.01) s = d.toFixed(3);
+  else s = d.toExponential(2);
+  return withUnit(s, unit);
 }
 
 export function formatCount(n: number): string {

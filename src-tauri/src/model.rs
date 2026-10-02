@@ -91,6 +91,9 @@ pub struct SceneMeta {
     pub was_dwg: bool,
     /// Number of entities that were not understood / cannot be tessellated.
     pub skipped: u64,
+    /// $INSUNITS from the DXF header (group 70; 0 = unitless / unspecified).
+    /// DWG loads inherit it from the dwg2dxf conversion output.
+    pub insunits: i32,
 }
 
 /// Scene blob layout: [magic "RCV1"][u32 meta_len][meta JSON][geometry region].

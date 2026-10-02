@@ -61,7 +61,7 @@ export const app = $state({
 export function setLang(lang: "zh" | "en") {
   app.lang = lang;
   try {
-    localStorage.setItem("rcv.lang", lang);
+    localStorage.setItem("rocktier.lang", lang);
   } catch {
     /* storage unavailable */
   }
@@ -71,7 +71,7 @@ export function setLang(lang: "zh" | "en") {
 export function setUprightText(on: boolean) {
   app.uprightText = on;
   try {
-    localStorage.setItem("rcv.upright", on ? "1" : "0");
+    localStorage.setItem("rocktier.upright", on ? "1" : "0");
   } catch {
     /* storage unavailable */
   }
@@ -100,7 +100,7 @@ export function addRecent(path: string) {
   const list = [{ path, name, ts: Date.now() }, ...getRecent().filter((r) => r.path !== path)];
   const kept = list.slice(0, 6);
   try {
-    localStorage.setItem("rcv.recent", JSON.stringify(kept));
+    localStorage.setItem("rocktier.recent", JSON.stringify(kept));
   } catch {
     /* storage unavailable */
   }

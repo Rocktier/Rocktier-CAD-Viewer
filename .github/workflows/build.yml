@@ -169,6 +169,44 @@ jobs:
             src-tauri/target/msix/*.msix*
           generate_release_notes: true
 
+  # ────────────────────────────────────────────────────────────────
+  #  Checks：前端构建 + cargo test（与 build/release 解耦，push 即跑）
+  #  tauri::generate_context! 编译期要读 dist/ 与图标，所以先出前端产物。
+  # ────────────────────────────────────────────────────────────────
+  checks:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Frontend build (dist/ required by tauri::generate_context!)
+        run: npm run build
+
+      - name: Rust tests
+        working-directory: ./src-tauri
+        run: cargo test --all-targets
+
   # 发布闸门：两平台都传完之后，先校验资产清单齐全，再把草稿发布为 latest。
   # 不齐就保留草稿并让 job 失败 —— 用户永远不会拿到残缺包。
   publish:

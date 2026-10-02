@@ -39,6 +39,20 @@ pinned Windows version is reproducible). If you would prefer the source in anoth
 form, or the link above ever stops working, write to hello@rocktier.com and we will
 provide it.
 
+### ezdxf — `DXF_DEFAULT_COLORS` colour table
+
+| | |
+|---|---|
+| **Component** | ezdxf, the `DXF_DEFAULT_COLORS` colour table data |
+| **Licence** | MIT License |
+| **Copyright** | the ezdxf authors (Manfred Moitzi et al.) |
+| **Upstream source** | https://github.com/ezdxf/ezdxf |
+
+`src-tauri/src/aci.rs` embeds a colour table generated from ezdxf's
+`DXF_DEFAULT_COLORS`. No ezdxf code is executed or linked — only the static colour
+values are reproduced. ezdxf is distributed under the MIT License; this notice
+constitutes the required attribution.
+
 ---
 
 ## Trademarks

@@ -75,6 +75,25 @@
     "macOS": {
       "entitlements": "Entitlements.plist",
       "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "allowDowngrades": true,
+      "digestAlgorithm": "sha256",
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "language": "en-US",
+        "upgradeCode": "28867E7E-AB0B-54C3-8D63-E1CEF23F31CF"
+      }
     }
   }
 }

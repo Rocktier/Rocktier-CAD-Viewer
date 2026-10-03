@@ -4,7 +4,7 @@
 //! 自定义项点击经 `on_menu_event` 转成 `menu-action` 事件发给前端；
 //! 预定义项（撤销、拷贝、最小化、退出等）由系统本地化并自带快捷键。
 
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 
 pub const WEBSITE: &str = "https://rocktier.com/";
 pub const FEEDBACK: &str = "mailto:hello@rocktier.com";
@@ -44,7 +44,11 @@ pub fn build(app: &tauri::AppHandle, lang: &str) -> tauri::Result<()> {
             &PredefinedMenuItem::about(
                 app,
                 Some(l("关于 Rocktier CAD Viewer", "About Rocktier CAD Viewer")),
-                None,
+                                Some(AboutMetadata {
+                    version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                    copyright: Some("Copyright 2026 Rocktier".to_string()),
+                    ..Default::default()
+                }),
             )?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::hide(app, None)?,

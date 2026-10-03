@@ -1,11 +1,27 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" sizes="256x256" href="/favicon.png" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <title>Rocktier CAD Viewer</title>
+    <script>
+      // 三态主题必须在第一帧样式解析前定好：默认值是 auto（跟随系统），
+      // 若等 Svelte 挂载再设，浅色系统上会先画一帧深色底再跳变。
+      (function () {
+        try {
+          var saved = localStorage.getItem("rocktier-cad-ui-theme");
+          var mode = saved === "light" || saved === "dark" || saved === "auto" ? saved : "auto";
+          document.documentElement.setAttribute("data-theme",
+            mode === "auto"
+              ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+              : mode);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.ts" defer></script>
   </head>
   <body>

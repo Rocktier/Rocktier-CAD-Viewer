@@ -29,26 +29,54 @@
     app.tool = app.tool === "measure" ? "pan" : "measure";
   }
 
-  /* ── 界面主题（深色为家族默认，显示菜单可切换，选择记在本机） ──
-     注意与"图纸主题"区分：导出时的 dark / print 是画布配色（见 ExportDialog），
-     这里的 data-theme 只管界面外壳。 */
+  /* ── 界面主题 ───────────────────────────────────────────────────
+     三态 auto → light → dark → auto（家族 §6.5 唯一状态机）。
+     注意与「图纸主题」区分：导出时的 dark / print 是画布配色（见 ExportDialog），
+     这里的 data-theme 只管界面外壳。
+     存储键沿用 "rocktier-cad-ui-theme"：改键会让老用户偏好丢失，只扩值域。 */
   const THEME_KEY = "rocktier-cad-ui-theme";
-  let uiTheme = $state<"dark" | "light">("dark");
+  const THEME_CYCLE = ["auto", "light", "dark"] as const;
+  type UiThemeMode = (typeof THEME_CYCLE)[number];
+  let uiTheme = $state<UiThemeMode>("auto");
 
-  function applyUiTheme(mode: "dark" | "light") {
+  function systemTheme(): "dark" | "light" {
+    return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+
+  /** auto 落成实际生效值 —— data-theme 只接受 light/dark。 */
+  function resolveUiTheme(mode: UiThemeMode): "dark" | "light" {
+    return mode === "auto" ? systemTheme() : mode;
+  }
+
+  function readUiTheme(): UiThemeMode {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === "light" || saved === "dark" || saved === "auto") return saved;
+    } catch {
+      /* 隐私模式下读不了，仅本次会话生效 */
+    }
+    return "auto";
+  }
+
+  function applyUiTheme(mode: UiThemeMode) {
     uiTheme = mode;
-    if (mode === "light") document.documentElement.setAttribute("data-theme", "light");
-    else document.documentElement.removeAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", resolveUiTheme(mode));
   }
 
   function toggleUiTheme() {
-    const next: "dark" | "light" = uiTheme === "light" ? "dark" : "light";
+    const next = THEME_CYCLE[(THEME_CYCLE.indexOf(uiTheme) + 1) % THEME_CYCLE.length];
     try {
       localStorage.setItem(THEME_KEY, next);
     } catch {
       /* 隐私模式下写不了 localStorage，仅本次会话生效 */
     }
     applyUiTheme(next);
+  }
+
+  function themeLabel(): string {
+    if (uiTheme === "light") return t("themeModeLight");
+    if (uiTheme === "dark") return t("themeModeDark");
+    return t("themeModeAuto");
   }
 
   /** Open a drawing the OS handed us (file association / "Open with"). */
@@ -59,8 +87,14 @@
   }
 
   onMount(() => {
-    // 恢复上次选择的界面主题（深色是家族默认）
-    applyUiTheme(localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark");
+    // 恢复上次选择的界面主题（没选过 = 跟随系统）
+    applyUiTheme(readUiTheme());
+    // auto 态下系统外观变了要跟着变；light/dark 是明确选择，不动。
+    const themeMq = window.matchMedia("(prefers-color-scheme: light)");
+    const onThemeChange = () => {
+      if (uiTheme === "auto") applyUiTheme("auto");
+    };
+    themeMq.addEventListener("change", onThemeChange);
     const unlisteners: Array<() => void> = [];
     let cancelled = false;
     let dragTimer: ReturnType<typeof setTimeout> | undefined;
@@ -214,6 +248,31 @@
           </svg>
         </button>
       {/if}
+      <!-- 家族唯一主题按钮：.icon-btn（28×28 + 40×40 命中区），三态 auto→light→dark。
+           此前 CAD 只有显示菜单里的「主题」入口，界面上根本没有按钮。 -->
+      <button
+        class="icon-btn"
+        data-mode={uiTheme}
+        title={`${t("themeBtn")} · ${themeLabel()}`}
+        aria-label={`${t("themeBtn")}: ${themeLabel()}`}
+        onclick={toggleUiTheme}
+      >
+        {#if uiTheme === "auto"}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2.5" y="4" width="19" height="13" rx="2" />
+            <path d="M8 20.5h8M12 17v3.5" />
+          </svg>
+        {:else if uiTheme === "dark"}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          </svg>
+        {:else}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+          </svg>
+        {/if}
+      </button>
       <button class="ghost lang-btn" title={t("langLabel")} aria-label={t("langLabel")} onclick={() => { setLang(app.lang === "zh" ? "en" : "zh"); invoke("build_menu", { lang: app.lang }).catch(() => {}); }}>
         {app.lang === "zh" ? "EN" : "中文"}
       </button>

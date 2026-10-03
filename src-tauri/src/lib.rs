@@ -2,6 +2,9 @@ pub mod aci;
 pub mod commands;
 pub mod drawing;
 pub mod dxf_ascii;
+// 授权：试用状态与回执验签（单一来源 docs/rocktier/license.rs，规程 FAMILY-LICENSE.md）。
+// 写命令的拦截在 commands.rs 的 ensure_write_allowed，界面在 LicenseDialog.svelte。
+pub mod license;
 pub mod menu;
 pub mod model;
 pub mod pdf;
@@ -98,12 +101,20 @@ pub fn run() {
                     slot.extend(queued);
                 }
             }
+            // 授权状态的落盘目录。取不到就留空，current_license() 会按"不拦截"处理
+            // —— 宁可少拦一次，也不能因为一个目录取不到把用户锁在外面（与 PDF 范本同款）。
+            if let Ok(dir) = app.path().app_data_dir() {
+                commands::init_license_dir(dir);
+            }
+            commands::init_app_handle(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::open_drawing,
             commands::open_url,
             commands::save_export,
+            commands::license_status,
+            commands::store_receipt,
             build_menu,
             opened_files
         ])

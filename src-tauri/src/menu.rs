@@ -32,6 +32,9 @@ pub fn build(app: &tauri::AppHandle, lang: &str) -> tauri::Result<()> {
     )?;
     let site_i = MenuItem::with_id(app, "website", l("官方网站", "Website"), true, None::<&str>)?;
     let mail_i = MenuItem::with_id(app, "feedback", l("反馈", "Feedback"), true, None::<&str>)?;
+    // 购买页上写着"打开应用 → License → 输入激活码"，所以应用里必须真有一个能到
+    // 那儿的入口（授权胶囊在已激活/商店版下会隐藏，帮助菜单是常驻入口）。
+    let license_i = MenuItem::with_id(app, "license", l("许可与激活…", "License…"), true, None::<&str>)?;
 
     let app_menu = Submenu::with_items(
         app,
@@ -105,7 +108,7 @@ pub fn build(app: &tauri::AppHandle, lang: &str) -> tauri::Result<()> {
         app,
         l("帮助", "Help"),
         true,
-        &[&site_i, &mail_i],
+        &[&license_i, &site_i, &mail_i],
     )?;
 
     let menu = Menu::with_items(

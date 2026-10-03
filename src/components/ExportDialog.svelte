@@ -2,6 +2,7 @@
   import { app, setStatus } from "../lib/state.svelte";
   import { t } from "../lib/i18n.svelte";
   import { saveExport, type ExportFormat, type ExportScope, type ExportTheme } from "../lib/export";
+  import { isLicenseExpiredError, openLicense } from "../lib/license";
 
   let scope = $state<ExportScope>("drawing");
   let theme = $state<ExportTheme>("dark");
@@ -48,7 +49,10 @@
         setStatus(capped ? `${t("exportOk")} ${name} · ${t("exportCapped")}` : `${t("exportOk")} ${name}`);
       }
     } catch (e) {
-      setStatus(`${t("exportFail")}: ${e}`);
+      // 导出被授权闸门拦下 → 弹激活对话框（事件链已弹一次，这里兜错误串防事件丢失）；
+      // 其余失败维持原样的裸错误提示。
+      if (isLicenseExpiredError(e)) openLicense();
+      else setStatus(`${t("exportFail")}: ${e}`);
     } finally {
       busy = false;
     }

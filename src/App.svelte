@@ -9,7 +9,9 @@
   import LayersPanel from "./components/LayersPanel.svelte";
   import AboutDialog from "./components/AboutDialog.svelte";
   import ExportDialog from "./components/ExportDialog.svelte";
+  import LicenseDialog from "./components/LicenseDialog.svelte";
   import { app, openFile, setStatus, setLang, setUprightText } from "./lib/state.svelte";
+  import { openLicense, onLicenseExpired, refreshLicense } from "./lib/license";
   import { t } from "./lib/i18n.svelte";
   import { formatCoord, formatCount, formatDuration, unitLabel } from "./lib/format";
 
@@ -94,9 +96,20 @@
           case "fit-core": app.fitCoreTick++; break;
           case "panel": app.panelOpen = !app.panelOpen; break;
           case "theme": toggleUiTheme(); break;
+          case "license": openLicense(); break;
           case "website": void invoke("open_url", { url: "https://rocktier.com/" }).catch(() => {}); break;
           case "feedback": void invoke("open_url", { url: "mailto:hello@rocktier.com" }).catch(() => {}); break;
         }
+      }),
+    );
+
+    // 授权（家族 L6）：启动读一次试用状态；导出被拦时由 Rust 发 license-expired 事件
+    //（命令层统一发），这里弹激活对话框并刷新状态。前端另有兜底：ExportDialog 的
+    // catch 里判错误串含 LICENSE_EXPIRED 也开对话框，防事件丢失时只剩裸失败。
+    refreshLicense();
+    keep(
+      onLicenseExpired(() => {
+        openLicense();
       }),
     );
 
@@ -257,8 +270,27 @@
       <span class="grow"></span>
       <span class="status-item">v{VERSION}</span>
     {/if}
+    <!-- License chip (family L6): shown only for the direct channel before it is
+         activated — the Store build is charged by the Store, and an extra
+         trial/purchase hint there reads as out-of-store purchasing to review.
+         Activated builds render nothing; the Help menu keeps a permanent entry. -->
+    {#if app.license && app.license.channel === "direct" && app.license.status !== "licensed"}
+      <button
+        class="status-license"
+        class:expired={app.license.status === "expired"}
+        title={app.license.status === "expired"
+          ? (app.lang === "zh" ? "试用已结束 —— 点击激活" : "Trial ended — click to activate")
+          : (app.lang === "zh" ? `免费试用中，还剩 ${app.license.daysLeft} 天` : `Free trial, ${app.license.daysLeft} day(s) left`)}
+        onclick={openLicense}
+      >
+        {app.license.status === "expired"
+          ? (app.lang === "zh" ? "未激活" : "Not activated")
+          : (app.lang === "zh" ? `试用剩 ${app.license.daysLeft} 天` : `Trial · ${app.license.daysLeft}d`)}
+      </button>
+    {/if}
   </footer>
 
   <AboutDialog />
   <ExportDialog />
+  <LicenseDialog />
 </div>

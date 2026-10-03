@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { Scene } from "./scene";
 import { parseBlob } from "./scene";
 import { t } from "./i18n.svelte";
+import type { LicenseInfo } from "./license";
 
 export type Tool = "pan" | "measure";
 
@@ -46,6 +47,9 @@ export const app = $state({
   zoomPct: 100,
   aboutOpen: false,
   exportOpen: false,
+  /** 家族 L6 授权：当前状态（null = 尚未取到，或浏览器 dev）+ 对话框开关。 */
+  license: null as LicenseInfo | null,
+  licenseOpen: false,
   panelOpen: true,
   /** Live camera snapshot — the exporter reproduces the current view from it. */
   camera: { cx: 0, cy: 0, scale: 0, vw: 1, vh: 1 },

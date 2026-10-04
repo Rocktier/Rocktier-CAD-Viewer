@@ -212,6 +212,23 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      # `sync:legal` 必须在这里显式跑，**不能只依赖 beforeBuildCommand**。
+      #
+      # `beforeBuildCommand` 只在 `tauri build` 路径上触发（见 tauri.conf.json：
+      # `npm run sync:legal && npm run build`）。而本 job 走的是
+      # `npm run build` + `cargo test`，**绕过 beforeBuildCommand** ——
+      # 于是 `src-tauri/resources/legal/` 是空的（那些文件被 .gitignore 排除，
+      # 由 sync-legal.mjs 从仓库根复制而来）。
+      #
+      # 下一行 `cargo test` 编译 `tauri::generate_context!` 时会读
+      # `bundle.resources` 里的 `resources/legal/*`，glob 匹配不到任何文件就
+      # 直接失败 —— 报的是 build.rs 的 exit code 101，与 clippy 无关，
+      # 很容易被误判成编译错误。实测本地完整复现：
+      #   清空 legal/ → `glob pattern resources/legal/* path not found` → exit 101
+      #   npm run sync:legal → 编译通过
+      - name: Sync licence resources (build.rs needs resources/legal/*)
+        run: npm run sync:legal
+
       - name: Frontend build (dist/ required by tauri::generate_context!)
         run: npm run build
 

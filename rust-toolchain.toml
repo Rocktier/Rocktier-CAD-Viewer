@@ -1,0 +1,24 @@
+# 固定 Rust 工具链版本（2026-10-04 加）
+#
+# 为什么必须钉：workflow 里写的是 `dtolnay/rust-toolchain@stable`，它跟着上游
+# 滚动。stable 一升级，clippy 就可能多出新的 lint，而 CI 用 `-D warnings`
+# 把 warning 升成 error —— 于是**没有任何代码改动**，CI 就红了。
+#
+# 实测：2026-10-03 起本仓的 Checks 连续失败（exit code 101），本地
+# `cargo clippy --all-targets -- -D warnings` 却退出 0。逐项比对确认差异
+# 只有一个 —— 本地锁在 1.98.0，CI 用的是更新版。
+#
+# ⚠️ 本文件**不足以**修复 CI —— workflow 里必须同步改。理由：
+# `dtolnay/rust-toolchain@stable` 的 `@stable` 是**显式指定 toolchain**，
+# 它会**覆盖**本文件里的 channel（这是该 action 的既定行为，不是 bug）。
+# 所以两处都要改：本文件管本地 rustup 与不带 toolchain 参数的调用，
+# workflow 里的 `@stable` → `@1.98.0` 管 CI。
+#
+# 两个文件各自的职责：
+#   · 本文件 —— 本地开发者与任何不带参数的调用自动对齐，不必每人自己 pin
+#   · workflow 的 @1.98.0 —— CI 实际用的版本（`@stable` 会覆盖本文件）
+#
+# 什么时候该升：主动升，并且本地先跑一遍 `cargo clippy --all-targets -- -D warnings`
+# 把新 lint 处理掉，再同时改这两处。不要等 stable 自己漂上来。
+[toolchain]
+channel = "1.98.0"

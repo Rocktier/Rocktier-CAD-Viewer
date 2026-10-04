@@ -34,7 +34,10 @@
      注意与「图纸主题」区分：导出时的 dark / print 是画布配色（见 ExportDialog），
      这里的 data-theme 只管界面外壳。
      存储键沿用 "rocktier-cad-ui-theme"：改键会让老用户偏好丢失，只扩值域。 */
-  const THEME_KEY = "rocktier-cad-ui-theme";
+  // 2026-10-04 键改名 → "rocktier.theme"，与家族其余产品同名同形（跨产品记忆负担最小）。
+  // 上一行注释担心「改键会让老用户偏好丢失」是对的 —— 所以读取处回落旧键，两条同时成立。
+  const THEME_KEY = "rocktier.theme";
+  const THEME_KEY_LEGACY = "rocktier-cad-ui-theme";
   const THEME_CYCLE = ["auto", "light", "dark"] as const;
   type UiThemeMode = (typeof THEME_CYCLE)[number];
   let uiTheme = $state<UiThemeMode>("auto");
@@ -50,7 +53,7 @@
 
   function readUiTheme(): UiThemeMode {
     try {
-      const saved = localStorage.getItem(THEME_KEY);
+      const saved = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(THEME_KEY_LEGACY);
       if (saved === "light" || saved === "dark" || saved === "auto") return saved;
     } catch {
       /* 隐私模式下读不了，仅本次会话生效 */

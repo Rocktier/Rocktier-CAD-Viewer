@@ -39,8 +39,8 @@
      or error states only. */
   --brand-dot: #181818;
   /* 空态点阵（家族 motif，audit 7B-1；配色沿用 text3 低透明度） */
-  --dot-pattern: radial-gradient(circle, var(--text3) 1px, transparent 1.6px);
-  --dot-size: 22px;
+  --dot-pattern: radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  --dot-size: 20px;
   --focus-ring: rgba(255, 255, 255, 0.65);
   --head-bg: rgba(0, 0, 0, 0.8);
   --selection: rgba(255, 255, 255, 0.15);

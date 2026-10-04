@@ -11,7 +11,9 @@
       // 若等 Svelte 挂载再设，浅色系统上会先画一帧深色底再跳变。
       (function () {
         try {
-          var saved = localStorage.getItem("rocktier-cad-ui-theme");
+          // 2026-10-04：运行时已改读 ""rocktier.theme""（键改名统一命名空间），
+          // 这里必须同步，否则老用户会看到「先按旧键画首帧、挂载后跳成另一种」。
+          var saved = localStorage.getItem("rocktier.theme") || localStorage.getItem("rocktier-cad-ui-theme");
           var mode = saved === "light" || saved === "dark" || saved === "auto" ? saved : "auto";
           document.documentElement.setAttribute("data-theme",
             mode === "auto"

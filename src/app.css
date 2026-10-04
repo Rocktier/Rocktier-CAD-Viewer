@@ -707,7 +707,6 @@ body {
   font-family: var(--font);
   font-size: 0.8rem;
   padding: 6px 10px;
-  outline: none;
 }
 /* A border barely one step away from the resting state is invisible; the ring
    makes keyboard focus obvious. */

@@ -260,7 +260,13 @@ jobs:
           # Poll up to ~10 min with an initial settle delay before giving up.
           sleep 20
           for i in $(seq 1 30); do
-            assets=$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null || true)
+            # 保留 || true 仅为让轮询能继续重试（资产 API 确实会 lag），
+            # 但**必须把 stderr 打出来** —— 之前 `2>/dev/null` 把它一并丢掉，
+            # 于是 gh 的真实错误（权限 / 仓库名 / Rate limit）被伪装成
+            # 「资产还没上传」，报错信息完全指错方向，排查方向整个跑偏。
+            # 实测踩过：MD v1.0.7 / CAD v0.2.5 / Journal v0.2.7 三个仓资产其实齐全，
+            # 校验却报「六个包全缺」—— 就是这一行。修复沿用 Write 仓的写法。
+            assets=$(gh release view "$TAG" --json assets --jq '.assets[].name' || true)
             ok=1
             for pat in $REQUIRED_ASSETS; do
               printf '%s\n' "$assets" | grep -Eq "$pat" || ok=0

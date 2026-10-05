@@ -25,10 +25,7 @@
   --bg2: #0a0a0a;
   --card: rgba(255, 255, 255, 0.03);
   --card-hover: rgba(255, 255, 255, 0.06);
-  --border: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.15);
   --text: rgba(255, 255, 255, 0.95);
-  --text2: rgba(255, 255, 255, 0.55);
   --text3: rgba(255, 255, 255, 0.5);
   --accent: #ffffff;
   --on-accent: #000000;
@@ -37,14 +34,12 @@
   /* Wordmark dot: a quiet full stop, not a second red accent.  The single
      brand-red pip lives inside the icon; red in the chrome means interactive
      or error states only. */
-  --brand-dot: #181818;
   /* 空态点阵（家族 motif，audit 7B-1；配色沿用 text3 低透明度） */
   --dot-pattern: radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   --dot-size: 20px;
   --focus-ring: rgba(255, 255, 255, 0.65);
   --head-bg: rgba(0, 0, 0, 0.8);
   --selection: rgba(255, 255, 255, 0.15);
-  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
   --focus-glow: rgba(255, 255, 255, 0.14);
   --radius-sm: 12px;
   --radius-md: 20px;
@@ -71,9 +66,6 @@
   --text3: rgba(0, 0, 0, 0.58);
   --accent: #000000;
   --on-accent: #ffffff;
-  --accent-glow: rgba(0, 0, 0, 0.08);
-  /* 品牌红保持 #ff4a3d：brand-pip 是家族签名的红点，不得降为 danger 色 */
-  --red: #ff4a3d;
   /* 字标 tile 两种主题都保持深色（匹配 Dock 图标），故 letters/badge 仍为白 */
   --brand-dot: #181818;
   --focus-ring: rgba(0, 0, 0, 0.45);

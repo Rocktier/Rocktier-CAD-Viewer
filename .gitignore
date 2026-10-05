@@ -54,3 +54,7 @@ HANDOFF.md
 # Editor-session worktrees. Currently only ignored by a global gitignore on this
 # machine, which means a fresh clone shows them as untracked noise.
 .meituan-catpaw/
+
+# 家族契约由台账仓 rocktier-docs 单一维护，本地开发用符号链接挂过来。
+# 绝不能提交副本 —— 9 份手工同步的副本曾全部漂移。
+docs/rocktier

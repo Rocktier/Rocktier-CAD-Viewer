@@ -176,7 +176,8 @@
   <header class="app-head">
     <div class="brand">
       <BrandMark />
-      <span class="brand-word">Rocktier CAD Viewer<i></i></span>
+      <span class="brand-word">Rocktier CAD Viewer</span>
+      <span class="dot-live" aria-hidden="true"></span>
     </div>
     <span class="brand-sub">DXF · DWG · OFFLINE</span>
 

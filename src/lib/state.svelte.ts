@@ -18,10 +18,37 @@ function stored(key: string): string | null {
   }
 }
 
-function initialLang(): "zh" | "en" {
+/* 语言集合的单一真源。家族标准 8 门（en/zh/ja/ko/de/es/pt/ar）——
+   与 PDF 的 src/i18n/locales.ts 同构，两边保持一致。
+   注意：这里不用 `as const` —— .svelte.ts 里 svelte-check 不接受它
+   （"const assertion can only be applied to…"），改成显式类型。 */
+type LangCode = "en" | "zh" | "ja" | "ko" | "de" | "es" | "pt" | "ar";
+export type { LangCode };
+export const LOCALES: ReadonlyArray<{ code: LangCode; endonym: string }> = [
+  { code: "en", endonym: "English" },
+  { code: "zh", endonym: "中文" },
+  { code: "ja", endonym: "日本語" },
+  { code: "ko", endonym: "한국어" },
+  { code: "de", endonym: "Deutsch" },
+  { code: "es", endonym: "Español" },
+  { code: "pt", endonym: "Português" },
+  { code: "ar", endonym: "العربية" },
+];
+
+const CODES: readonly string[] = LOCALES.map((l) => l.code);
+
+function isLang(v: unknown): v is LangCode {
+  return typeof v === "string" && CODES.includes(v);
+}
+
+/* English is the family default (family.json `defaultLanguage: "en"`), and the
+   family deliberately does NOT follow the system locale — the user's manual
+   choice is the only thing remembered. Previously this returned "zh" for any
+   zh-* system locale, which is backwards for a product aimed overseas. */
+function initialLang(): LangCode {
   const saved = stored("rcv.lang");
-  if (saved === "zh" || saved === "en") return saved;
-  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+  if (isLang(saved)) return saved;
+  return "en";
 }
 
 export const app = $state({
@@ -62,7 +89,7 @@ export const app = $state({
   recents: [] as RecentFile[],
 });
 
-export function setLang(lang: "zh" | "en") {
+export function setLang(lang: LangCode) {
   app.lang = lang;
   try {
     localStorage.setItem("rocktier.lang", lang);

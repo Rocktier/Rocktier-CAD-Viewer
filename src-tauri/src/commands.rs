@@ -137,7 +137,7 @@ pub async fn license_status() -> Result<LicenseInfo, String> {
 /// 取不到时返回空串：服务端据此不计数也不拦激活（见
 /// `rocktier.com/api/devices.js` 的模块说明）。
 #[tauri::command]
-pub fn machine_fingerprint() -> String {
+pub fn report_machine_fingerprint() -> String {
     crate::trial::machine_fingerprint()
 }
 

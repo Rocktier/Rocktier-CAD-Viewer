@@ -124,7 +124,7 @@ pub fn run() {
             commands::open_url,
             commands::save_export,
             commands::license_status,
-            commands::machine_fingerprint,
+            commands::report_machine_fingerprint,
             commands::store_receipt,
             build_menu,
             opened_files

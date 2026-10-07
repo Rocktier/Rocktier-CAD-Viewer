@@ -15,7 +15,6 @@ pub mod license;
 
 pub mod trial;
 
-pub mod license;
 pub mod menu;
 pub mod model;
 pub mod pdf;

@@ -4,6 +4,17 @@ pub mod drawing;
 pub mod dxf_ascii;
 // 授权：试用状态与回执验签（单一来源 docs/rocktier/license.rs，规程 FAMILY-LICENSE.md）。
 // 写命令的拦截在 commands.rs 的 ensure_write_allowed，界面在 LicenseDialog.svelte。
+/// 家族内唯一的产品标识，用作试用记录的副存储命名空间。
+///
+/// 必须与 `tauri.conf.json` 的 `bundle.identifier` 逐字一致 ——
+/// 副存储按它分文件，改了会导致老用户的试用记录读不到（等于白送 7 天）。
+/// 改动时两处必须同步。
+pub const APP_KEY: &str = "Rocktier.RocktierCADViewer";
+
+pub mod license;
+
+pub mod trial;
+
 pub mod license;
 pub mod menu;
 pub mod model;

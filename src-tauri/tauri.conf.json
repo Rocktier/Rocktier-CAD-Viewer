@@ -11,7 +11,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Rocktier CAD Viewer",
@@ -23,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://rocktier.com; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'self'"
     }
   },
   "bundle": {

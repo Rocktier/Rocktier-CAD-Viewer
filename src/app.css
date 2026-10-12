@@ -75,7 +75,7 @@
   --focus-ring: rgba(0, 0, 0, 0.45);
   --head-bg: rgba(255, 255, 255, 0.8);
   --selection: rgba(0, 0, 0, 0.12);
-  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.45);
   --focus-glow: rgba(0, 0, 0, 0.12);
 }
 

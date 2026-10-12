@@ -26,7 +26,7 @@
   --on-brand: #ffffff;
   --accent-brand: var(--red);
   --danger: #ff4a3d;
-  --warning: #cc3a30;
+  --warning: #e8912a;
   /* 成功 = 绿，保留（2026-10-05 最终裁定，此前在「去绿 / 保留绿」之间反复过三次，
      至此定案：不再改）。对纯黑 8.42:1，深色档无需调整，沿用原值。
      若将来有人再提「去绿」，请先看浅色档那段注释里的往复记录。 */
@@ -119,12 +119,12 @@
   --warn: rgba(255, 176, 46, 0.9);
   --sidebar-w: 260px;
   --accent-warn: #d98a00;
-  --dim-text: rgba(255, 255, 255, 0.30);
+  --dim-text: rgba(255, 255, 255, 0.58);
   /* 深色档这两个原值都**看不见**，且方向正好相反（像是在两个块之间贴错了）：
      --scrollbar-thumb rgba(0,0,0,.18) 对纯黑 = 1.00:1（完全不可见）
      --brand-dot        #181818        对纯黑 = 1.18:1（几乎不可见）
    正确方向：深色底上该用**浅色**前景。浅色档那两处同样贴反了，一并对调。 */
-  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.38);
   --brand-dot: #e8e8e8;
   --focus-glow: rgba(255, 255, 255, 0.14);
   --brand-hover: #cc3a30;
@@ -263,10 +263,10 @@
   --surface-2: #f5f5f5;
   --warn: #8a5a00;
   --sidebar-w: 260px;
-  --accent-warn: #d98a00;
+  --accent-warn: #8a5a00;
   --dim-text: rgba(0, 0, 0, 0.58);
   /* 浅色档：深色前景才看得见（原先两处与深色档贴反了） */
-  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.45);
   --brand-dot: #181818;
   --focus-glow: rgba(0, 0, 0, 0.12);
   --brand-hover: #cc3a30;

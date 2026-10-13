@@ -1,11 +1,5 @@
 import { app } from "./state.svelte";
 
-import { ja } from "./i18n.ja";
-import { ko } from "./i18n.ko";
-import { de } from "./i18n.de";
-import { es } from "./i18n.es";
-import { pt } from "./i18n.pt";
-import { ar } from "./i18n.ar";
 
 type Dict = Record<string, string>;
 
@@ -161,8 +155,8 @@ const en: Dict = {
   opening: "Opening…",
 };
 
-/* 8 门语言。英文兜底 —— 缺键不会露出 key 本身。 */
-const dicts: Record<string, Dict> = { zh, en, ja, ko, de, es, pt, ar };
+/* 中英两门（2026-10-13 起）。英文兜底，缺键不会露出 key 本身。 */
+const dicts: Record<string, Dict> = { zh, en };
 
 export function t(key: string): string {
   return dicts[app.lang][key] ?? dicts.en[key] ?? key;

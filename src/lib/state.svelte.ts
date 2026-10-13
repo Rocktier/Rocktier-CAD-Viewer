@@ -25,15 +25,9 @@ function stored(key: string): string | null {
 type LangCode = "en" | "zh" | "ja" | "ko" | "de" | "es" | "pt" | "ar";
 export type { LangCode };
 export const LOCALES: ReadonlyArray<{ code: LangCode; endonym: string }> = [
-  { code: "en", endonym: "English" },
-  { code: "zh", endonym: "中文" },
-  { code: "ja", endonym: "日本語" },
-  { code: "ko", endonym: "한국어" },
-  { code: "de", endonym: "Deutsch" },
-  { code: "es", endonym: "Español" },
-  { code: "pt", endonym: "Português" },
-  { code: "ar", endonym: "العربية" },
-];
+    { code: "en", endonym: "English" },
+    { code: "zh", endonym: "中文" },
+  ];
 
 const CODES: readonly string[] = LOCALES.map((l) => l.code);
 

@@ -86,7 +86,10 @@ export const app = $state({
 export function setLang(lang: LangCode) {
   app.lang = lang;
   try {
-    localStorage.setItem("rocktier.lang", lang);
+    /* 键名必须与 initialLang() 的 stored("rcv.lang") 一致 —— 写成
+       "rocktier.lang" 时每次启动都读不到自己存的值，语言永远回英文。
+       这不是缓存失效，是功能不存在。 */
+    localStorage.setItem("rcv.lang", lang);
   } catch {
     /* storage unavailable */
   }
@@ -96,7 +99,8 @@ export function setLang(lang: LangCode) {
 export function setUprightText(on: boolean) {
   app.uprightText = on;
   try {
-    localStorage.setItem("rocktier.upright", on ? "1" : "0");
+    /* 同 setLang：键名贴 stored("rcv.upright")，否则开关每次重启复位。 */
+    localStorage.setItem("rcv.upright", on ? "1" : "0");
   } catch {
     /* storage unavailable */
   }
@@ -125,7 +129,9 @@ export function addRecent(path: string) {
   const list = [{ path, name, ts: Date.now() }, ...getRecent().filter((r) => r.path !== path)];
   const kept = list.slice(0, 6);
   try {
-    localStorage.setItem("rocktier.recent", JSON.stringify(kept));
+    /* 同前：键名贴 stored("rcv.recent")。写成 rocktier.recent 时
+       getRecent() 永远读不到本函数存的东西，"最近打开"每次启动都是空的。 */
+    localStorage.setItem("rcv.recent", JSON.stringify(kept));
   } catch {
     /* storage unavailable */
   }

@@ -41,7 +41,10 @@ function isLang(v: unknown): v is LangCode {
    choice is the only thing remembered. Previously this returned "zh" for any
    zh-* system locale, which is backwards for a product aimed overseas. */
 function initialLang(): LangCode {
-  const saved = stored("rcv.lang");
+  /* 读 rocktier.lang，回落旧键 rcv.lang —— 61a4ef5 时代的构建把偏好写在
+     rcv.* 下，那次用户的数据还在。语言是用户感知最强的偏好，
+     重置一次就等于「中文用户变英文界面」（MD 同款改名也是留旧键回落）。 */
+  const saved = stored("rocktier.lang") ?? stored("rcv.lang");
   if (isLang(saved)) return saved;
   return "en";
 }
@@ -49,7 +52,7 @@ function initialLang(): LangCode {
 export const app = $state({
   lang: initialLang(),
   /** Turn upside-down text upright for readability ("按图纸原样" turns it off). */
-  uprightText: stored("rcv.upright") !== "0",
+  uprightText: (stored("rocktier.upright") ?? stored("rcv.upright")) !== "0",
   loading: false,
   loadingMsg: "",
   /** Live load progress from the Rust side: `pct` < 0 means indeterminate. */
@@ -87,10 +90,12 @@ export const app = $state({
 export function setLang(lang: LangCode) {
   app.lang = lang;
   try {
-    /* 键名必须与 initialLang() 的 stored("rcv.lang") 一致 —— 写成
-       "rocktier.lang" 时每次启动都读不到自己存的值，语言永远回英文。
-       这不是缓存失效，是功能不存在。 */
-    localStorage.setItem("rcv.lang", lang);
+    /* 键名必须与 initialLang() 读的一致，且落在家族命名空间 rocktier. 下
+       （family.json storageKeyNamespace，storage-key-namespace 闸门守着）。
+       1a93a60 归一时只改了写、漏了读，从那时起语言偏好就再也存不住；
+       e158b95 发现后把写改回了 rcv.lang —— 修好了功能、违反了契约。
+       正解是读写都回 rocktier.lang，旧键只在读时回落。 */
+    localStorage.setItem("rocktier.lang", lang);
   } catch {
     /* storage unavailable */
   }
@@ -100,8 +105,8 @@ export function setLang(lang: LangCode) {
 export function setUprightText(on: boolean) {
   app.uprightText = on;
   try {
-    /* 同 setLang：键名贴 stored("rcv.upright")，否则开关每次重启复位。 */
-    localStorage.setItem("rcv.upright", on ? "1" : "0");
+    /* 同 setLang：写 rocktier.upright（命名空间契约），读时回落旧键 rcv.upright。 */
+    localStorage.setItem("rocktier.upright", on ? "1" : "0");
   } catch {
     /* storage unavailable */
   }
@@ -116,7 +121,8 @@ export interface RecentFile {
 }
 
 export function getRecent(): RecentFile[] {
-  const raw = stored("rcv.recent");
+  /* 读 rocktier.recent，回落旧键 rcv.recent（61a4ef5 时代的存量数据）。 */
+  const raw = stored("rocktier.recent") ?? stored("rcv.recent");
   if (!raw) return [];
   try {
     return JSON.parse(raw) as RecentFile[];
@@ -130,9 +136,10 @@ export function addRecent(path: string) {
   const list = [{ path, name, ts: Date.now() }, ...getRecent().filter((r) => r.path !== path)];
   const kept = list.slice(0, 6);
   try {
-    /* 同前：键名贴 stored("rcv.recent")。写成 rocktier.recent 时
-       getRecent() 永远读不到本函数存的东西，"最近打开"每次启动都是空的。 */
-    localStorage.setItem("rcv.recent", JSON.stringify(kept));
+    /* 同前：写 rocktier.recent，与 getRecent() 读的键一致（1a93a60 漏了读那侧，
+       导致「最近打开」每次启动都是空的；e158b95 把写改回 rcv.recent 修好了
+       功能却违反命名空间契约 —— 正解是读写都回 rocktier.recent）。 */
+    localStorage.setItem("rocktier.recent", JSON.stringify(kept));
   } catch {
     /* storage unavailable */
   }

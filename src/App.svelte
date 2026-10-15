@@ -10,7 +10,7 @@
   import AboutDialog from "./components/AboutDialog.svelte";
   import ExportDialog from "./components/ExportDialog.svelte";
   import LicenseDialog from "./components/LicenseDialog.svelte";
-  import { LOCALES, app, openFile, setStatus, setLang, setUprightText, type LangCode } from "./lib/state.svelte";
+  import { LOCALES, app, openFile, retryOpen, setStatus, setLang, setUprightText, type LangCode } from "./lib/state.svelte";
   import { openLicense, onLicenseExpired, refreshLicense } from "./lib/license";
   import { t } from "./lib/i18n.svelte";
   import { formatCoord, formatCount, formatDuration, unitLabel } from "./lib/format";
@@ -305,6 +305,15 @@
     <Stage onOpen={pickFile} />
     {#if app.scene && app.panelOpen}
       <LayersPanel />
+    {/if}
+    {#if app.error && !app.loading}
+      <div class="app-error" role="alert">
+        <p class="app-error-msg">{app.error}</p>
+        <div class="app-error-actions">
+          <button class="btn" onclick={retryOpen}>{t("retry")}</button>
+          <button class="btn ghost" onclick={pickFile}>{t("openAnother")}</button>
+        </div>
+      </div>
     {/if}
   </div>
 

@@ -328,6 +328,38 @@ body {
   flex: 1;
   display: flex;
   min-height: 0;
+  position: relative;
+}
+
+/* 打开失败覆盖层：openFile 把解析/转换错误写进 app.error，但此前界面从未渲染，
+   导致 DWG/DXF 打不开时只有 loading 停住、用户看不到任何原因（无错误边界的
+   Svelte 应用，异步异常也不会触发任何兜底层）。行业标尺：eDrawings / Autodesk
+   Viewer / 预览 都给出「打不开 + 原因 + 重试」。这里复用既有 errTitle / retry /
+   openAnother 三键，retryOpen() 已存在只是没接 UI。 */
+.app-error {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(3px);
+}
+.app-error-msg {
+  max-width: 440px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.app-error-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .stage {

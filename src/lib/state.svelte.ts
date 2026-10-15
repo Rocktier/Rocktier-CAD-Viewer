@@ -18,11 +18,12 @@ function stored(key: string): string | null {
   }
 }
 
-/* 语言集合的单一真源。家族标准 8 门（en/zh/ja/ko/de/es/pt/ar）——
-   与 PDF 的 src/i18n/locales.ts 同构，两边保持一致。
+/* 语言集合的单一真源。2026-10-13 家族收敛裁定后为 en/zh 两门
+   （family.json globalRules.$locales_2026_10_13），与 PDF 的
+   src/i18n/locales.ts 同构，两边保持一致。
    注意：这里不用 `as const` —— .svelte.ts 里 svelte-check 不接受它
    （"const assertion can only be applied to…"），改成显式类型。 */
-type LangCode = "en" | "zh" | "ja" | "ko" | "de" | "es" | "pt" | "ar";
+type LangCode = "en" | "zh";
 export type { LangCode };
 export const LOCALES: ReadonlyArray<{ code: LangCode; endonym: string }> = [
     { code: "en", endonym: "English" },

@@ -277,11 +277,11 @@
           </svg>
         {/if}
       </button>
-      <!-- 家族标准 8 门语言。原为 en↔zh 二选一 —— 6 门语言接入后没法用。
-           用原生 <select>：8 个选项不需要搜索，原生控件在 Windows/macOS 行为一致，
+      <!-- 中英两门（2026-10-13 家族收敛裁定，见 family.json globalRules.$locales_2026_10_13）。
+           用原生 <select>：两个选项不需要搜索，原生控件在 Windows/macOS 行为一致，
            键盘与读屏器支持免费获得。选项显示 endonym（语言自称）。
            保留原来的 invoke("build_menu")：切换语言必须同步重建原生菜单，
-           否则工具栏是日文、菜单还是中文。 -->
+           否则工具栏是英文、菜单还是中文。 -->
       <select
         class="ghost lang-btn"
         value={app.lang}

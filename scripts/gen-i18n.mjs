@@ -27,7 +27,11 @@ const REPO = process.env.ROCKTIER_ROOT || join(HERE, "..", "..", "..", "..");
 const GLOSSARY = join(REPO, "docs", "rocktier", "i18n", "glossary.json");
 const SRC = join(HERE, "..", "src", "lib", "i18n.svelte.ts");
 
-const LANGS = ["ja", "ko", "de", "es", "pt", "ar"];
+/* 2026-10-13 家族裁定：语言收敛为 en/zh 两门 —— 非中英语种均为未审校机翻基线
+   （family.json globalRules.$locales_2026_10_13）。生成器不再产出 6 门译文：
+   留着 LANGS 等于留一条复活路径，谁跑一次本脚本，删掉的字典文件全部回来。
+   scripts/i18n/<lang>.mjs 译文物保留作历史档案，不进构建。 */
+const LANGS = [];
 const args = process.argv.slice(2);
 const only = args.includes("--lang") ? args[args.indexOf("--lang") + 1] : null;
 

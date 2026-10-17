@@ -83,6 +83,13 @@ fn opened_files(state: tauri::State<OpenedFiles>) -> Vec<String> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .on_menu_event(|app, event| {
+            // Windows 真全屏（替代 muda 在 Win 上无效的 PredefinedMenuItem::fullscreen）
+            if event.id().0.as_str() == "win-fullscreen" {
+                if let Some(win) = app.get_webview_windows().values().next().cloned() {
+                    let _ = win.set_fullscreen(!win.is_fullscreen().unwrap_or(false));
+                }
+                return;
+            }
             let _ = app.emit("menu-action", event.id().0.clone());
         });
 

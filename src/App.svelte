@@ -12,6 +12,7 @@
   import LicenseDialog from "./components/LicenseDialog.svelte";
   import { LOCALES, app, openFile, retryOpen, setStatus, setLang, setUprightText, type LangCode } from "./lib/state.svelte";
   import { openLicense, onLicenseExpired, refreshLicense } from "./lib/license";
+  import { checkForUpdates, currentVersion, type UpdateResult } from "./lib/updates";
   import { t } from "./lib/i18n.svelte";
   import { formatCoord, formatCount, formatDuration, unitLabel } from "./lib/format";
 
@@ -38,9 +39,51 @@
   // 上一行注释担心「改键会让老用户偏好丢失」是对的 —— 所以读取处回落旧键，两条同时成立。
   const THEME_KEY = "rocktier.theme";
   const THEME_KEY_LEGACY = "rocktier-cad-ui-theme";
+  const UPDATE_CHECKED_KEY = "rocktier.updateCheckedAt";
+  const APP_VERSION = currentVersion();
+
+  type UpdateState = "idle" | "checking" | "uptodate" | "available" | "failed";
   const THEME_CYCLE = ["auto", "light", "dark"] as const;
   type UiThemeMode = (typeof THEME_CYCLE)[number];
   let uiTheme = $state<UiThemeMode>("auto");
+
+  /* 更新检查。状态只由用户点击推进 —— 没有任何 effect 会自动发起联网请求，
+     这是「除非你要求，应用不会联网」这条承诺的落点。 */
+  let updateState = $state<UpdateState>("idle");
+  let updateResult = $state<UpdateResult | null>(null);
+  let lastCheckedAt = $state<number | null>(loadLastChecked());
+  let updateChecking = false;
+
+  async function runUpdateCheck() {
+    if (updateChecking) return;
+    updateChecking = true;
+    updateState = "checking";
+    try {
+      const result = await checkForUpdates();
+      updateResult = result;
+      lastCheckedAt = result.checkedAt;
+      try { localStorage.setItem(UPDATE_CHECKED_KEY, String(result.checkedAt)); } catch { /* 隐私模式下忽略 */ }
+      updateState = result.hasUpdate ? "available" : "uptodate";
+    } catch {
+      updateState = "failed";
+    } finally {
+      updateChecking = false;
+    }
+  }
+
+  function loadLastChecked(): number | null {
+    const raw = localStorage.getItem(UPDATE_CHECKED_KEY);
+    const n = raw ? Number(raw) : 0;
+    return n > 0 ? n : null;
+  }
+
+  function formatCheckedAt(ts: number): string {
+    try {
+      return new Date(ts).toLocaleDateString(app.lang === "zh" ? "zh-CN" : "en");
+    } catch {
+      return new Date(ts).toISOString().slice(0, 10);
+    }
+  }
 
   function systemTheme(): "dark" | "light" {
     return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
@@ -134,6 +177,7 @@
           case "panel": app.panelOpen = !app.panelOpen; break;
           case "theme": toggleUiTheme(); break;
           case "license": openLicense(); break;
+          case "check-updates": void runUpdateCheck(); break;
           case "website": void invoke("open_url", { url: "https://rocktier.com/" }).catch(() => {}); break;
           case "feedback": void invoke("open_url", { url: "mailto:hello@rocktier.com" }).catch(() => {}); break;
         }
@@ -377,6 +421,41 @@
           : (app.lang === "zh" ? `试用剩 ${app.license.daysLeft} 天` : `Trial · ${app.license.daysLeft}d`)}
       </button>
     {/if}
+
+    <!-- 更新检查入口。固定右下角 —— 点击才联网：启动时、工作中、后台都不检查，
+        见 lib/updates.ts 头注。 -->
+    <div class="update-corner" class:has-update={updateState === "available"}>
+      <button
+        type="button"
+        class="update-line"
+        onclick={() => void runUpdateCheck()}
+        disabled={updateState === "checking"}
+        title={t("updatePrivacy")}
+      >
+        <span class="update-ver">v{APP_VERSION}</span>
+        <span class="update-sep" aria-hidden="true">·</span>
+        <span class="update-action">
+          {updateState === "checking" ? t("updateChecking") : t("updateCheck")}
+        </span>
+      </button>
+      <div class="update-note" role="status" aria-live="polite">
+        {#if updateState === "uptodate"}{t("updateUpToDate")}{/if}
+        {#if updateState === "failed"}{t("updateFailed")}{/if}
+        {#if updateState === "available" && updateResult}
+          <button
+            type="button"
+            class="update-get"
+            onclick={() => void invoke("open_url", { url: updateResult.url }).catch(() => {})}
+            title={t("updateAvail")}
+          >
+            {t("updateGet")}
+          </button>
+        {/if}
+        {#if updateState === "idle"}
+          {t("updateLastPrefix")}{lastCheckedAt ? formatCheckedAt(lastCheckedAt) : t("updateNever")}
+        {/if}
+      </div>
+    </div>
   </footer>
 
   <AboutDialog />

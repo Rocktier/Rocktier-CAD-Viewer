@@ -88,6 +88,8 @@ pub struct LicenseInfo {
     pub days_left: i64,
     /// 仅 `licensed` 时有值（`CV` 单品 / `FL` 全家桶）。
     pub product: Option<String>,
+    /// 仅 `licensed` 时有值：回执里的交易号（吊销复检的凭据）。
+    pub txn: Option<String>,
     /// 当前是否真的会拦截写操作（渠道 + 公钥 + 总开关三者决定）。
     pub enforcing: bool,
     /// `direct`（官网直链）/ `store`（微软商店）。
@@ -99,8 +101,15 @@ pub struct LicenseInfo {
     pub activation_configured: bool,
 }
 
+/// 回执里的交易号（吊销复检用）。无有效回执时为 None。
+fn receipt_txn() -> Option<String> {
+    let dir = LICENSE_DIR.get()?;
+    crate::license::read_valid_receipt(dir, crate::license::PUBLIC_KEY_B64).map(|r| r.txn)
+}
+
 fn license_info() -> LicenseInfo {
     let status = current_license();
+    let txn = receipt_txn();
     LicenseInfo {
         status: status.as_str().to_string(),
         days_left: match &status {
@@ -111,6 +120,7 @@ fn license_info() -> LicenseInfo {
             crate::license::Status::Licensed { product } => Some(product.clone()),
             _ => None,
         },
+        txn,
         enforcing: crate::license::enforced(),
         channel: crate::license::channel().to_string(),
         activation_configured: !crate::license::PUBLIC_KEY_B64.trim().is_empty(),
@@ -139,6 +149,20 @@ pub async fn license_status() -> Result<LicenseInfo, String> {
 #[tauri::command]
 pub fn report_machine_fingerprint() -> String {
     crate::trial::machine_fingerprint()
+}
+
+/// 清除本地回执（吊销复检判定 revoked 时由前端调用）。
+/// 之后 license_status 回到 trial/expired，写闸门按状态拦截。
+#[tauri::command]
+pub fn clear_receipt() -> Result<(), String> {
+    let dir = LICENSE_DIR
+        .get()
+        .ok_or_else(|| "no app data directory".to_string())?;
+    let p = dir.join("receipt.txt");
+    if p.exists() {
+        std::fs::remove_file(&p).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

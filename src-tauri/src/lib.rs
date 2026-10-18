@@ -133,6 +133,7 @@ pub fn run() {
             commands::license_status,
             commands::report_machine_fingerprint,
             commands::store_receipt,
+            commands::clear_receipt,
             build_menu,
             opened_files
         ])

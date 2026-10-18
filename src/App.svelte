@@ -11,7 +11,7 @@
   import ExportDialog from "./components/ExportDialog.svelte";
   import LicenseDialog from "./components/LicenseDialog.svelte";
   import { LOCALES, app, openFile, retryOpen, setStatus, setLang, setUprightText, type LangCode } from "./lib/state.svelte";
-  import { openLicense, onLicenseExpired, refreshLicense } from "./lib/license";
+  import { openLicense, onLicenseExpired, refreshLicense, revalidateLicence } from "./lib/license";
   import { checkForUpdates, currentVersion, type UpdateResult } from "./lib/updates";
   import { t } from "./lib/i18n.svelte";
   import { formatCoord, formatCount, formatDuration, unitLabel } from "./lib/format";
@@ -64,6 +64,13 @@
       lastCheckedAt = result.checkedAt;
       try { localStorage.setItem(UPDATE_CHECKED_KEY, String(result.checkedAt)); } catch { /* 隐私模式下忽略 */ }
       updateState = result.hasUpdate ? "available" : "uptodate";
+      /* 顺带吊销复检：同一次点击、同一承诺（只在点击时联网）。revoked → 清回执，
+         授权状态回到未激活并弹激活对话框。 */
+      const verdict = await revalidateLicence();
+      if (verdict === "revoked") {
+        refreshLicense();
+        openLicense();
+      }
     } catch {
       updateState = "failed";
     } finally {

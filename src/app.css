@@ -263,7 +263,8 @@ body {
   color: var(--text);
 }
 .ghost.active {
-  color: var(--red);
+  /* 文字用 --red-ink（浅档 --red 对白底 3.98:1 不过 AA）；描边保持 --red。 */
+  color: var(--red-ink);
   border-color: var(--red);
 }
 .ghost svg {

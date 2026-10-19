@@ -75,6 +75,9 @@ export const app = $state({
   /** 家族 L6 授权：当前状态（null = 尚未取到，或浏览器 dev）+ 对话框开关。 */
   license: null as LicenseInfo | null,
   licenseOpen: false,
+  /** B1：吊销复检判定 revoked 时置位，激活框顶部显示「许可已被吊销」专属通告 ——
+     回执已清、info 与试用到期无从区分，verdict 是唯一可靠的传递点。 */
+  licenseRevoked: false,
   panelOpen: true,
   /** Live camera snapshot — the exporter reproduces the current view from it. */
   camera: { cx: 0, cy: 0, scale: 0, vw: 1, vh: 1 },

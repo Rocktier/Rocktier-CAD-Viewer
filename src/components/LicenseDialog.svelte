@@ -22,6 +22,7 @@
 
   function requestClose() {
     app.licenseOpen = false;
+    app.licenseRevoked = false;
   }
 
   /** 打开产品页：桌面端走 Rust 白名单入口，浏览器 dev 直接开新窗口。 */
@@ -92,6 +93,12 @@
       <h3 class="license-title">{L("许可与激活", "License")}</h3>
 
       <p class="license-status">{statusLine(app.license)}</p>
+
+      {#if app.licenseRevoked}
+        <p class="license-revoked-notice">
+          {L("该许可已被吊销 —— 通常是退款或支付争议导致。授权状态已重置。在下方重新激活即可继续使用；若你认为这是误判，请把订单号发到 hello@rocktier.com。", "This licence has been revoked — usually after a refund or a payment dispute. Your licence status has been reset. Activate again below to continue, or write to hello@rocktier.com (with your order number) if you believe this is a mistake.")}
+        </p>
+      {/if}
 
       {#if app.license?.status === "licensed"}
         <p class="license-note">
@@ -167,6 +174,15 @@
   .license-error {
     font-size: 0.75rem;
     color: var(--red);
+    line-height: 1.55;
+  }
+  /* 吊销通告（B1）： revoked 标记见 App.svelte 调用点。 */
+  .license-revoked-notice {
+    border: 1px solid var(--danger, var(--red));
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--danger, var(--red));
+    font-size: 0.75rem;
     line-height: 1.55;
   }
   .license-field {

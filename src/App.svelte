@@ -68,6 +68,7 @@
          授权状态回到未激活并弹激活对话框。 */
       const verdict = await revalidateLicence();
       if (verdict === "revoked") {
+        app.licenseRevoked = true;
         refreshLicense();
         openLicense();
       }

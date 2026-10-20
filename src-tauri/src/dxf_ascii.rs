@@ -12,6 +12,25 @@
 use crate::aci::aci_to_rgb;
 use crate::model::{LayerInfo, LayoutMeta, RangeSpec, SceneMeta, TextItem};
 
+/// 顶点色（RGBA 四个 u8 分量）。
+///
+/// 打包成一个值而不是四个裸参数：几何编码函数的签名因此短一大截
+/// （`append_line` 从 9 参降到 6 参），调用点也从「四个并列裸值」变成
+/// 一个自解释的值。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Rgba(pub u8, pub u8, pub u8, pub u8);
+
+impl Rgba {
+    /// 全透明 —— 遮罩三角（WIPEOUT）用它，渲染时按背景色画。
+    pub(crate) const TRANSPARENT: Rgba = Rgba(0, 0, 0, 0);
+}
+
+/// 一个块内实体：`(实体类型, 组码对)`。
+type BlockEntity = (String, Vec<(i32, String)>);
+
+/// BLOCKS 段：块名 → 该块的实体列表。
+type BlockMap = std::collections::HashMap<String, Vec<BlockEntity>>;
+
 /// Parse ASCII DXF text into `(SceneMeta, geometry_blob)`.
 ///
 /// `file_time_ms` is included in meta so the caller can surface parse time in
@@ -137,7 +156,7 @@ struct State {
     /// text; drawing them at 1.0 makes every such note visibly too wide.
     style_width: std::collections::HashMap<String, f64>,
     /// BLOCKS section: block name → [(entity type, group-code pairs)].
-    blocks: std::collections::HashMap<String, Vec<(String, Vec<(i32, String)>)>>,
+    blocks: BlockMap,
     /// Active block-insert transform: (tx, ty, scale, cos θ, sin θ).
     xf: (f64, f64, f64, f64, f64),
     xf_depth: u32,
@@ -159,7 +178,7 @@ struct State {
     /// "0" inherits the insert's layer, and BYBLOCK (ACI 0) content inherits
     /// the insert's colour.
     blk_layer: Option<usize>,
-    blk_color: Option<(u8, u8, u8, u8)>,
+    blk_color: Option<Rgba>,
     poly: Option<PolyAcc>,
     /// Raw entities, kept so paper-space viewports can re-project model space.
     /// Only filled when `keep_raw` is set — see `State::new` / `parse`.
@@ -249,9 +268,11 @@ impl State {
     }
 
     /// Colour for the entity being parsed: explicit code 62 wins, else layer.
-    fn cur_rgba(&self) -> (u8, u8, u8, u8) {
-        self.cur_color
-            .unwrap_or_else(|| layer_color(&self.layers[self.current_layer]))
+    fn cur_rgba(&self) -> Rgba {
+        let (r, g, b, a) = self
+            .cur_color
+            .unwrap_or_else(|| layer_color(&self.layers[self.current_layer]));
+        Rgba(r, g, b, a)
     }
 
     fn set_extents(&mut self, x: f64, y: f64) {
@@ -269,7 +290,7 @@ impl State {
             // only — a sheet frame is not an outlier.
             if self.cur_layout == 0 {
                 self.sample_seen += 1;
-                if self.sample_seen % 16 == 0 && self.samples.len() < 400_000 {
+                if self.sample_seen.is_multiple_of(16) && self.samples.len() < 400_000 {
                     self.samples.push((x as f32, y as f32));
                 }
             }
@@ -291,10 +312,10 @@ impl State {
         self.set_extents(x1, y1);
         self.set_extents(x2, y2);
         let li = self.current_layer;
-        let (r, g, b, a) = self.cur_rgba();
+        let color = self.cur_rgba();
         let lay = &mut self.layouts[self.cur_layout];
         lay.reserve(li);
-        append_line(&mut lay.lines[li], x1, y1, x2, y2, r, g, b, a);
+        append_line(&mut lay.lines[li], x1, y1, x2, y2, color);
     }
 
     /// Dash-aware line: splits the segment according to the active linetype.
@@ -336,7 +357,7 @@ impl State {
         let mut travelled = 0.0f64;
         while travelled < len - 1e-12 {
             let step = (pattern[idx] - pos).max(0.0).min(len - travelled);
-            if idx % 2 == 0 && step > 0.0 {
+            if idx.is_multiple_of(2) && step > 0.0 {
                 let t0 = travelled;
                 let t1 = travelled + step;
                 self.emit_seg(x1 + ux * t0, y1 + uy * t0, x1 + ux * t1, y1 + uy * t1);
@@ -358,10 +379,10 @@ impl State {
         }
         self.set_extents(x, y);
         let li = self.current_layer;
-        let (r, g, b, a) = self.cur_rgba();
+        let color = self.cur_rgba();
         let lay = &mut self.layouts[self.cur_layout];
         lay.reserve(li);
-        append_point(&mut lay.points[li], x, y, r, g, b, a);
+        append_point(&mut lay.points[li], x, y, color);
     }
 
     /// Mask triangle (WIPEOUT).  Stored in its own stream because it must be
@@ -379,7 +400,7 @@ impl State {
         let li = self.current_layer;
         let lay = &mut self.layouts[self.cur_layout];
         lay.reserve(li);
-        append_tri(&mut lay.masks[li], a, b, c, 0, 0, 0, 0);
+        append_tri(&mut lay.masks[li], a, b, c, Rgba::TRANSPARENT);
     }
 
     /// Filled triangle (HATCH / SOLID / TRACE / 3DFACE).
@@ -399,10 +420,10 @@ impl State {
         self.set_extents(b.0, b.1);
         self.set_extents(c.0, c.1);
         let li = self.current_layer;
-        let (cr, cg, cb, ca) = self.cur_rgba();
+        let color = self.cur_rgba();
         let lay = &mut self.layouts[self.cur_layout];
         lay.reserve(li);
-        append_tri(&mut lay.tris[li], a, b, c, cr, cg, cb, ca);
+        append_tri(&mut lay.tris[li], a, b, c, color);
     }
 
     fn parse(&mut self, input: &str, on_progress: &dyn Fn(f32)) {
@@ -936,7 +957,10 @@ impl State {
         let a0 = f(buf, 41, 0.0);
         let a1 = f(buf, 42, std::f64::consts::PI * 2.0);
         let major = (ax * ax + ay * ay).sqrt();
-        let minor = major * ratio.min(1.0).max(1e-12);
+        // `f64::clamp` 会把 NaN 原样传下去，而旧的 `.min().max()` 链会把 NaN
+        // 收敛成 1.0；一个 NaN 比例会污染整条椭圆（NaN 顶点），所以先归一再钳位。
+        let ratio = if ratio.is_nan() { 1.0 } else { ratio };
+        let minor = major * ratio.clamp(1e-12, 1.0);
         let rot = ay.atan2(ax);
         // Adaptive: scale with major axis length.
         let r_avg = (major + minor) * 0.5;
@@ -1023,7 +1047,7 @@ impl State {
         if display.trim().is_empty() { return; }
         self.set_layer(buf);
         let li = self.current_layer;
-        let (r, g, b, a) = self.cur_rgba();
+        let Rgba(r, g, b, a) = self.cur_rgba();
         // Text inside a block reference inherits the insert's placement.
         let (x, y) = self.apply_xf(f(buf, 10, 0.0), f(buf, 20, 0.0));
         let (_, _, sx, cx, sxn) = self.xf;
@@ -1050,7 +1074,7 @@ impl State {
                 _ => (0, 1),
             }
         } else {
-            (i(buf, 72, 0) as i64, i(buf, 73, 0) as i64)
+            (i(buf, 72, 0), i(buf, 73, 0))
         };
         if let Some((cx0, cy0, cx1, cy1)) = self.clip {
             if x < cx0 || x > cx1 || y < cy0 || y > cy1 {
@@ -1086,7 +1110,7 @@ impl State {
         }
         self.set_layer(buf);
         let li = self.current_layer;
-        let (r, g, b, a) = self.cur_rgba();
+        let Rgba(r, g, b, a) = self.cur_rgba();
         let (x, y) = self.apply_xf(f(buf, 10, 0.0), f(buf, 20, 0.0));
         if let Some((cx0, cy0, cx1, cy1)) = self.clip {
             if x < cx0 || x > cx1 || y < cy0 || y > cy1 {
@@ -1233,10 +1257,13 @@ impl State {
         }
         let (min_x, min_y, max_x, max_y) = loops_bounds(loops);
         let height = max_y - min_y;
-        if !(height > 0.0) {
+        // 旧写法 `!(height > 0.0)` 借取反比较来同时挡 NaN 与非正值。改成显式
+        // 判定：非有限值（NaN / ±Inf）一并挡掉 —— 旧写法会让 +Inf 走进下一步，
+        // 算出 Inf 步长与 NaN 顶点，把整块填充带污染。
+        if !height.is_finite() || height <= 0.0 {
             return;
         }
-        let steps = ((height / 1.0).min(192.0)).max(4.0) as usize;
+        let steps = (height / 1.0).clamp(4.0, 192.0) as usize;
         let dy = height / steps as f64;
         for s in 0..=steps {
             let y = min_y + dy * s as f64;
@@ -1357,7 +1384,7 @@ impl State {
                 let mut phase = (t0 - t_min).rem_euclid(period);
                 while t < t1 - 1e-9 {
                     let step = (dashes[idx] - phase).max(0.0).min(t1 - t);
-                    if idx % 2 == 0 && step > 0.0 {
+                    if idx.is_multiple_of(2) && step > 0.0 {
                         self.push_line(
                             origin.0 + dir.0 * t,
                             origin.1 + dir.1 * t,
@@ -1487,7 +1514,8 @@ impl State {
                     Some((r, g, b, 255))
                 }
             }
-            Some(0) => self.blk_color, // BYBLOCK → insert's resolved colour
+            // BYBLOCK → insert's resolved colour
+            Some(0) => self.blk_color.map(|c| (c.0, c.1, c.2, c.3)),
             _ => None,                 // absent / BYLAYER → layer colour
         };
         self.cur_dash = self.resolve_dash(buf);
@@ -1717,7 +1745,7 @@ impl State {
 
 // ------------------------------------------------------------------------ helpers
 
-fn s<'a>(buf: &'a [(i32, String)], code: i32) -> &'a str {
+fn s(buf: &[(i32, String)], code: i32) -> &str {
     buf.iter().find(|(c, _)| *c == code).map(|(_, v)| v.as_str()).unwrap_or("")
 }
 
@@ -2529,14 +2557,14 @@ fn scan_style_table(input: &str) -> std::collections::HashMap<String, f64> {
 ///
 /// ponytail: the BLOCK base point (10/20) is ignored — block definitions are
 /// almost always written at the origin.
-fn scan_blocks(input: &str) -> std::collections::HashMap<String, Vec<(String, Vec<(i32, String)>)>> {
+fn scan_blocks(input: &str) -> BlockMap {
     use std::collections::HashMap;
     let lines: Vec<&str> = input.lines().collect();
-    let mut out: HashMap<String, Vec<(String, Vec<(i32, String)>)>> = HashMap::new();
+    let mut out: BlockMap = HashMap::new();
     let mut in_blocks = false;
     let mut name: Option<String> = None;
-    let mut ents: Vec<(String, Vec<(i32, String)>)> = Vec::new();
-    let mut cur: Option<(String, Vec<(i32, String)>)> = None;
+    let mut ents: Vec<BlockEntity> = Vec::new();
+    let mut cur: Option<BlockEntity> = None;
 
     let mut i = 0usize;
     while i + 1 < lines.len() {
@@ -2618,7 +2646,7 @@ fn de_boor(u: f64, degree: i32, knots: &[f64], ctrl: &[(f64, f64)]) -> (f64, f64
     }
     // Guard: `s` must allow `s - k..=s` to index ctrl safely.
     let s = s.clamp(k, n - 1);
-    let mut d: Vec<(f64, f64)> = ctrl[s - k..=s].iter().copied().collect();
+    let mut d: Vec<(f64, f64)> = ctrl[s - k..=s].to_vec();
     for r in 1..=k {
         for j in (r..=k).rev() {
             let denom = knots[s + j + 1 - r] - knots[s + j - k];
@@ -2634,7 +2662,8 @@ fn de_boor(u: f64, degree: i32, knots: &[f64], ctrl: &[(f64, f64)]) -> (f64, f64
 
 // ------------------------------------------------------------------------ vertex encoders
 
-pub(crate) fn append_line(out: &mut Vec<u8>, x1: f64, y1: f64, x2: f64, y2: f64, r: u8, g: u8, b: u8, a: u8) {
+pub(crate) fn append_line(out: &mut Vec<u8>, x1: f64, y1: f64, x2: f64, y2: f64, color: Rgba) {
+    let (r, g, b, a) = (color.0, color.1, color.2, color.3);
     out.extend_from_slice(&(x1 as f32).to_le_bytes());
     out.extend_from_slice(&(y1 as f32).to_le_bytes());
     out.push(r); out.push(g); out.push(b); out.push(a);
@@ -2643,7 +2672,8 @@ pub(crate) fn append_line(out: &mut Vec<u8>, x1: f64, y1: f64, x2: f64, y2: f64,
     out.push(r); out.push(g); out.push(b); out.push(a);
 }
 
-pub(crate) fn append_point(out: &mut Vec<u8>, x: f64, y: f64, r: u8, g: u8, b: u8, a: u8) {
+pub(crate) fn append_point(out: &mut Vec<u8>, x: f64, y: f64, color: Rgba) {
+    let (r, g, b, a) = (color.0, color.1, color.2, color.3);
     out.extend_from_slice(&(x as f32).to_le_bytes());
     out.extend_from_slice(&(y as f32).to_le_bytes());
     out.push(r); out.push(g); out.push(b); out.push(a);
@@ -2654,15 +2684,13 @@ pub(crate) fn append_tri(
     a: (f64, f64),
     b: (f64, f64),
     c: (f64, f64),
-    r: u8,
-    g: u8,
-    bl: u8,
-    al: u8,
+    color: Rgba,
 ) {
+    let (cr, cg, cb, ca) = (color.0, color.1, color.2, color.3);
     for p in [a, b, c] {
         out.extend_from_slice(&(p.0 as f32).to_le_bytes());
         out.extend_from_slice(&(p.1 as f32).to_le_bytes());
-        out.push(r); out.push(g); out.push(bl); out.push(al);
+        out.push(cr); out.push(cg); out.push(cb); out.push(ca);
     }
 }
 

@@ -1222,72 +1222,33 @@ body {
 
 /* ── 更新检查入口（右下角固定）────────────────────────────────────────
    点击才联网：启动时、工作中、后台都不检查，见 lib/updates.ts 头注。
-   有可用更新时才转 accent：用户没要求被提醒，就不该用徽标催他。 */
-.update-corner {
-  position: fixed;
-  bottom: 38px;
-  z-index: 20;
+/* ── 检查更新对话框（入口：帮助菜单「检查更新…」）────────────────────
+   点击才联网：启动时、工作中、后台都不检查，见 lib/updates.ts 头注。
+   footer 常驻入口已移除（用户要求入口全部收进菜单；右下角悬浮入口
+   实测还会盖住底部内容，Compressor v0.1.10），故统一为菜单 + 本对话框。
+   结构复用 .modal-mask / .modal（AboutDialog 同款），下面只补差异。 */
+.update-modal {
+  width: 400px;
+  padding: 24px 28px;
+}
+
+.update-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.update-body p { margin: 0 0 10px; }
+
+.update-body small { color: var(--text-muted); line-height: 1.5; }
+
+.update-footer {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.update-line:hover {
-  border-color: var(--border-hover, var(--accent));
-  color: var(--text, var(--text-primary, inherit));
-}
-
-.update-line {
-  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--border, rgba(128, 128, 128, 0.25));
-  border-radius: 999px;
-  background: var(--card, transparent);
-  color: var(--text-tertiary, var(--text-muted, #888));
-  font-family: var(--font, inherit);
-  font-size: var(--fs-2xs, 11px);
-  text-align: right;
-  cursor: pointer;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
 }
 
-.update-line:disabled {
-  cursor: default;
-}
-
-.update-ver {
-  font-variant-numeric: tabular-nums;
-}
-
-.update-sep {
-  opacity: 0.45;
-}
-
-.update-note {
-  color: var(--text3, var(--text-muted, #888));
-  font-size: var(--fs-2xs, 11px);
-  text-align: right;
-}
-
-.update-corner.has-update .update-note {
-  color: var(--accent, #ffffff);
-}
-
-.update-get {
-  min-height: 24px;
-  padding: 2px 8px;
-  border: 1px solid var(--accent, #ffffff);
-  border-radius: 999px;
-  background: none;
-  color: var(--accent, #ffffff);
-  font-size: var(--fs-2xs, 11px);
-  cursor: pointer;
-}
-
-.update-get:hover {
-  background: var(--accent, #ffffff);
-  color: var(--bg, #0a0a0a);
-}
+.update-spacer { flex: 1; }

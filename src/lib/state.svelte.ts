@@ -72,6 +72,9 @@ export const app = $state({
   zoomPct: 100,
   aboutOpen: false,
   exportOpen: false,
+  /** 检查更新对话框开关。只由菜单「检查更新…」打开 —— footer 常驻入口已移除
+      （用户要求入口全部收进菜单；右下角悬浮入口实测还会盖住底部内容）。 */
+  updateOpen: false,
   /** 家族 L6 授权：当前状态（null = 尚未取到，或浏览器 dev）+ 对话框开关。 */
   license: null as LicenseInfo | null,
   licenseOpen: false,

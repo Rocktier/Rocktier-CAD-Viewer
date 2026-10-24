@@ -15,9 +15,9 @@ if ! codesign --verify --deep "$APP" 2>&1; then
   exit 1
 fi
 
-CREATE_DMG="/opt/homebrew/bin/create-dmg"
-if [ ! -x "$CREATE_DMG" ]; then
-  echo "▸ create-dmg not found at $CREATE_DMG"
+CREATE_DMG="$(command -v create-dmg || true)"
+if [ -z "$CREATE_DMG" ] || [ ! -x "$CREATE_DMG" ]; then
+  echo "▸ create-dmg not found on PATH"
   exit 1
 fi
 

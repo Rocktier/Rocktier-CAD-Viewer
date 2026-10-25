@@ -16,7 +16,8 @@
   <div class="dotframe"></div>
   <div class="empty-in">
     <div class="eyebrow">ROCKTIER · CAD VIEWER</div>
-    <div class="display">{app.lang === "zh" ? "看图，快就够了" : "See drawings. Fast."}<i></i></div>
+    <!-- 空态的主标题：display 是页面视觉主标题，语义上也应是 h1（不能整页无标题，D-78） -->
+    <h1 class="display">{app.lang === "zh" ? "看图，快就够了" : "See drawings. Fast."}<i></i></h1>
     <p class="lead">{t("emptyLead")}</p>
     <div class="empty-cta">
       <button class="btn" onclick={onOpen}>

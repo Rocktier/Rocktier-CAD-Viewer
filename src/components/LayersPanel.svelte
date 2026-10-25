@@ -54,7 +54,13 @@
       <div class="layer-row" class:off={app.hidden.has(l.i)}>
         <span class="layer-swatch" style={swatchStyle(l)}></span>
         <span class="layer-name" title={l.name}>{l.name}</span>
-        <button class="eye-btn" onclick={() => toggle(l.i)} aria-pressed={app.hidden.has(l.i)} aria-label={l.name}>
+        <button
+          class="eye-btn"
+          onclick={() => toggle(l.i)}
+          aria-pressed={app.hidden.has(l.i)}
+          aria-label={l.name}
+          title={app.hidden.has(l.i) ? t("showLayer") : t("hideLayer")}
+        >
           {#if app.hidden.has(l.i)}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />

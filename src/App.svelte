@@ -220,11 +220,16 @@
     {/if}
 
     <div class="head-actions">
+      <!-- 空态时 EmptyState 已有同款「打开」主 CTA：页头不再并列一个一模一样的
+         （2026-10-25 审计 D-78：两个一模一样的 Open drawing 主 CTA 并列） -->
+    {#if app.scene}
       <button class="btn" disabled={app.loading} onclick={pickFile}>{t("open")}</button>
+    {/if}
       {#if app.scene}
         <button
           class="ghost"
           class:active={app.tool === "measure"}
+          aria-pressed={app.tool === "measure"}
           title={t("measure")} aria-label={t("measure")}
           onclick={toggleTool}
         >
@@ -266,6 +271,7 @@
         <button
           class="ghost"
           class:active={app.uprightText}
+          aria-pressed={app.uprightText}
           title={t("uprightText")} aria-label={t("uprightText")}
           onclick={() => setUprightText(!app.uprightText)}
         >
@@ -277,6 +283,7 @@
         <button
           class="ghost"
           class:active={app.panelOpen}
+          aria-pressed={app.panelOpen}
           title={t("panel")} aria-label={t("panel")}
           onclick={() => (app.panelOpen = !app.panelOpen)}
         >
@@ -335,7 +342,12 @@
     </div>
   </header>
 
-  <div class="app-body">
+  <!-- main 地标 + 已加载时的文档标题 h1（视觉隐藏）；空态的可见 h1 在 EmptyState 里。
+       两种状态互斥，任何时刻恰好一个 h1（2026-10-25 审计 D-78：整屏 0 个标题、无 main） -->
+  <main class="app-body">
+    {#if app.scene}
+      <h1 class="visually-hidden">{app.fileName}</h1>
+    {/if}
     <Stage onOpen={pickFile} />
     {#if app.scene && app.panelOpen}
       <LayersPanel />
@@ -349,7 +361,7 @@
         </div>
       </div>
     {/if}
-  </div>
+  </main>
 
   {#if app.status}
     <div class="app-snackbar" role="status">{app.status}</div>
@@ -398,9 +410,10 @@
          trial/purchase hint there reads as out-of-store purchasing to review.
          Activated builds render nothing; the Help menu keeps a permanent entry. -->
     {#if app.license && app.license.channel === "direct" && app.license.status !== "licensed"}
+      <!-- 徽标颜色统一由 .badge-license（母版 tokens.css）负责，试用/过期同色，
+           不再用 expired 修饰类切品牌红（旧 3.98:1 不达 AA）。 -->
       <button
-        class="status-license"
-        class:expired={app.license.status === "expired"}
+        class="badge-license"
         title={app.license.status === "expired"
           ? (app.lang === "zh" ? "试用已结束 —— 点击激活" : "Trial ended — click to activate")
           : (app.lang === "zh" ? `免费试用中，还剩 ${app.license.daysLeft} 天` : `Free trial, ${app.license.daysLeft} day(s) left`)}

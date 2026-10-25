@@ -266,6 +266,21 @@ body {
   /* 文字用 --red-ink（浅档 --red 对白底 3.98:1 不过 AA）；描边保持 --red。 */
   color: var(--red-ink);
   border-color: var(--red);
+  position: relative; /* 状态红点锚点 */
+}
+/* 激活态第二通道：右上角点亮红点（Nothing 家族 motif）。
+   选中态不能只靠颜色表达（WCAG 1.4.1）——描边/文字都还是"色"，补一个形状变化。
+   （2026-10-25 审计 D-78：品牌红被当作选中/危险两用的疑虑，CAD 内无危险操作，
+   红=选中是文档化约定；补形状通道 + aria-pressed 消歧。） */
+.ghost.active::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--red-ink);
 }
 .ghost svg {
   width: 17px;
@@ -330,6 +345,20 @@ body {
   display: flex;
   min-height: 0;
   position: relative;
+}
+
+/* 读屏专用视觉隐藏：已加载图纸的 h1（文件名）不需要重复可见文案，
+   但要出现在无障碍树与阅读顺序里（D-78） */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* 打开失败覆盖层：openFile 把解析/转换错误写进 app.error，但此前界面从未渲染，
@@ -893,25 +922,9 @@ body {
   color: var(--text3);
 }
 
-/* 状态栏授权胶囊（家族 L6）：低调等宽小字，过期时转品牌红（红 = 交互/错误态，
-   见令牌注释）。点击打开「许可与激活」对话框；已激活 / 商店版不渲染。 */
-.status-license {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: var(--text3);
-  cursor: pointer;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  transition: color 0.2s;
-}
-.status-license:hover {
-  color: var(--text);
-}
-.status-license.expired {
-  color: var(--red);
-}
+/* 状态栏授权胶囊（家族 L6）：点击打开「许可与激活」对话框；已激活 / 商店版
+   不渲染。视觉样式已收编为母版 tokens.css 的 .badge-license（2026-10-25
+   审计 D-78）—— 旧实现过期转 --red（3.98:1 不达 AA）正是本次收编的根因之一。 */
 
 /* ---------------- measure ---------------- */
 

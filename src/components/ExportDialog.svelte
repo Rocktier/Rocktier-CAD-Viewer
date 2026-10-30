@@ -111,7 +111,7 @@
         <div class="pill-group">
           {#each ["png", "pdf"] as const as f}
             <button class="pill-btn" class:active={format === f} onclick={() => (format = f)}>
-              {f.toUpperCase()}
+              {f === "pdf" ? t("exportFormatPdf") : f.toUpperCase()}
             </button>
           {/each}
         </div>

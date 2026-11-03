@@ -93,6 +93,16 @@ const zh: Dict = {
   panel: "图层面板",
   oneFileOnly: "一次只能打开一个文件，已打开首个",
   opening: "正在打开…",
+  // 05-cad 设计稿：产品名后的一句话自述（家族契约 §一.4）
+  tagline: "看图纸",
+  // 工具条（第二行）的地标名
+  toolbarLabel: "查看工具",
+  // 工具条右侧的图纸单位（来自 $INSUNITS，不编造）
+  units: "单位",
+  // 测量横幅：两端都吸附到真实几何时才出现（state.measureResult.snapped）
+  measureSnapped: "两端已吸附到几何",
+  // 状态栏结果句：打开完成后说结果
+  loaded: "已加载",
 };
 
 const en: Dict = {
@@ -183,6 +193,16 @@ const en: Dict = {
   panel: "Layers panel",
   oneFileOnly: "One file at a time — opened the first",
   opening: "Opening…",
+  // 05-cad design: one-line description after the product name (family §一.4)
+  tagline: "View drawings",
+  // Accessible name of the second-row toolbar
+  toolbarLabel: "View tools",
+  // Drawing units at the toolbar's right edge (from $INSUNITS — never invented)
+  units: "Units",
+  // Measure banner: shown only when BOTH ends snapped to real geometry
+  measureSnapped: "Both points snapped to geometry",
+  // Status-bar result line after a drawing finishes opening
+  loaded: "Loaded",
 };
 
 /* 中英两门（2026-10-13 起）。英文兜底，缺键不会露出 key 本身。 */

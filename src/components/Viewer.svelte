@@ -33,6 +33,9 @@
   let snapHit: SnapHit | null = null;
   /** Where the measure drag started on screen — tells a drag from a click. */
   let dragOrigin: { sx: number; sy: number } | null = null;
+  /** Whether the first measured point landed on a snap candidate — pairs with
+   *  the end point's flag in `commitMeasure` to fill `measureResult.snapped`. */
+  let pendingSnapped = false;
   let dragMoved = false;
   /** Pointer travel (CSS px) that turns a press into a drag, not a jittery click. */
   const DRAG_SLOP_PX = 5;
@@ -174,6 +177,7 @@
   $effect(() => {
     void app.tool;
     pending = null;
+    pendingSnapped = false;
     snapHit = null;
     dragOrigin = null;
     if (app.tool !== "measure") {
@@ -209,7 +213,7 @@
     return { p, w: cursorWorld };
   }
 
-  function commitMeasure(end: { x: number; y: number }) {
+  function commitMeasure(end: { x: number; y: number }, endSnapped: boolean) {
     if (!pending) return;
     app.measureResult = {
       x1: pending.x,
@@ -217,6 +221,9 @@
       x2: end.x,
       y2: end.y,
       dist: Math.hypot(end.x - pending.x, end.y - pending.y),
+      /* Honest annotation: only claim "snapped" when BOTH ends landed on real
+         geometry.  Shift bypasses snapping, so those measurements stay silent. */
+      snapped: pendingSnapped && endSnapped,
     };
     pending = null;
   }
@@ -244,13 +251,14 @@
       if (!pending) {
         // First point: remember where the press started so a drag can complete
         // the measurement on release, while a plain click keeps it pending for
-        // the click-click workflow.
+        // the click-click workflow.  `cursorAt` already resolved the snap.
         pending = w;
+        pendingSnapped = snapHit != null;
         app.measureResult = null;
         dragOrigin = p;
         dragMoved = false;
       } else {
-        commitMeasure(w);
+        commitMeasure(w, snapHit != null);
       }
       requestDraw();
       return;
@@ -281,7 +289,8 @@
     dragOrigin = null;
     if (origin && dragMoved && pending) {
       // Drag-to-measure: releasing with the pointer moved commits the distance.
-      commitMeasure(cursorAt(e).w);
+      const { w } = cursorAt(e);
+      commitMeasure(w, snapHit != null);
       requestDraw();
     }
     dragging = false;
@@ -317,6 +326,7 @@
         return;
       }
       pending = null;
+      pendingSnapped = false;
       dragOrigin = null;
       app.measureResult = null;
       app.tool = "pan";

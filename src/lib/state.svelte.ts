@@ -66,7 +66,9 @@ export const app = $state({
   activeLayout: 0,
   hidden: new SvelteSet<number>(),
   tool: "pan" as Tool,
-  measureResult: null as null | { x1: number; y1: number; x2: number; y2: number; dist: number },
+  /** `snapped` = both ends landed on real geometry (endpoint/midpoint), so the
+   *  measurement tag may honestly say so.  Absent while nothing is measured. */
+  measureResult: null as null | { x1: number; y1: number; x2: number; y2: number; dist: number; snapped?: boolean },
   /** Cursor position in world units; `null` while the pointer is off-canvas. */
   coords: null as null | { x: number; y: number },
   zoomPct: 100,

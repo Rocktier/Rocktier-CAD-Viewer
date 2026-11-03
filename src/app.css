@@ -243,6 +243,77 @@ body {
   gap: 8px;
 }
 
+/* 顶栏产品名后的一句话自述（家族契约 §一.4，05-cad 设计稿 .suffix）。 */
+.brand-suffix {
+  font-size: 12px;
+  font-weight: 450;
+  color: var(--text3);
+  white-space: nowrap;
+}
+
+/* ── 第二行工具条（05-cad 设计稿 .toolbar） ──────────────────────────
+   只放真实存在的查看工具。此前这批类名没有定义，内联 SVG 会按
+   300×150 的默认尺寸渲染，工具条横向溢出，最右侧按钮点不到。 */
+.toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--toolbar-h);
+  padding: 0 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.tool {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.tool svg {
+  width: 16px;
+  height: 16px;
+}
+.tool:hover {
+  background: var(--card-hover);
+  color: var(--text);
+}
+.tool[aria-pressed="true"] {
+  background: var(--selection);
+  color: var(--accent);
+}
+.sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+}
+.spacer {
+  flex: 1;
+}
+.units {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text3);
+}
+.units b {
+  font-weight: 600;
+  color: var(--text2);
+}
+
 .ghost {
   background: var(--card);
   border: 1px solid var(--border);
@@ -727,7 +798,8 @@ body {
 .panel {
   width: 264px;
   flex: none;
-  border-left: 1px solid var(--border);
+  /* 面板在画布左侧（设计稿三栏第一栏），分隔线必须朝右。 */
+  border-right: 1px solid var(--border);
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -949,8 +1021,21 @@ body {
 }
 
 .measure-banner b {
-  color: var(--red);
+  color: var(--text);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.measure-note {
+  font-size: 11px;
+  color: var(--text3);
+  white-space: nowrap;
+}
+
+/* 状态栏的数值项：等宽 + 等宽数字，X/Y/缩放跳动时行宽不抖。
+   此前 class="status-item mono" 没有任何规则承载，是个悬空类名。 */
+.status-item.mono {
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 

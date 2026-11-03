@@ -211,9 +211,11 @@
     <div class="brand">
       <BrandMark />
       <span class="brand-word">Rocktier CAD Viewer</span>
-      <span class="dot-live" aria-hidden="true"></span>
+      <!-- 家族契约 §一.4：产品名后的一句话自述（05-cad 设计稿 .mark .suffix）。
+           原驻此处的 dot-live 无伴随文字，违反「红点永远配文字」——已移入
+           状态栏，只在进行中态出现。 -->
+      <span class="brand-suffix">{t("tagline")}</span>
     </div>
-    <span class="brand-sub">DXF · DWG · OFFLINE</span>
 
     {#if app.filePath}
       <span class="file-chip" title={app.filePath}>{app.fileName}</span>
@@ -223,76 +225,17 @@
       <!-- 空态时 EmptyState 已有同款「打开」主 CTA：页头不再并列一个一模一样的
          （2026-10-25 审计 D-78：两个一模一样的 Open drawing 主 CTA 并列） -->
     {#if app.scene}
-      <button class="btn" disabled={app.loading} onclick={pickFile}>{t("open")}</button>
+      <button class="btn ghosty" disabled={app.loading} onclick={pickFile}>{t("open")}</button>
+      <!-- 主操作只有一个（家族 §三.2）：导出。05-cad 设计稿把它做成实心主按钮，
+           其余查看工具降级到第二行工具条。 -->
+      <button class="btn" onclick={() => (app.exportOpen = true)}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v11m0 0-4-4m4 4 4-4" />
+          <path d="M5 19h14" />
+        </svg>
+        {t("exportTitle")}
+      </button>
     {/if}
-      {#if app.scene}
-        <button
-          class="ghost"
-          class:active={app.tool === "measure"}
-          aria-pressed={app.tool === "measure"}
-          title={t("measure")} aria-label={t("measure")}
-          onclick={toggleTool}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.3 8.7 15.3 14.7 9.3 8.7 15.3 2.7 21.3 8.7z" />
-            <path d="m2.7 21.3 6-6" />
-          </svg>
-        </button>
-        <button
-          class="ghost"
-          title={t("fitView")} aria-label={t("fitView")}
-          onclick={() => app.fitTick++}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-          </svg>
-        </button>
-        <button
-          class="ghost"
-          title={t("exportTitle")} aria-label={t("exportTitle")}
-          onclick={() => (app.exportOpen = true)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v12" />
-            <path d="m7 10 5 5 5-5" />
-            <path d="M4 19h16" />
-          </svg>
-        </button>
-        <button
-          class="ghost"
-          title={t("fitContent")} aria-label={t("fitContent")}
-          onclick={() => app.fitCoreTick++}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
-            <circle cx="12" cy="12" r="2.5" />
-          </svg>
-        </button>
-        <button
-          class="ghost"
-          class:active={app.uprightText}
-          aria-pressed={app.uprightText}
-          title={t("uprightText")} aria-label={t("uprightText")}
-          onclick={() => setUprightText(!app.uprightText)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m5 7 7 10m0-10-7 10M6.2 14h11.6" />
-            <path d="M17 3v4m0 0 1.8-1.8M17 7l-1.8-1.8" />
-          </svg>
-        </button>
-        <button
-          class="ghost"
-          class:active={app.panelOpen}
-          aria-pressed={app.panelOpen}
-          title={t("panel")} aria-label={t("panel")}
-          onclick={() => (app.panelOpen = !app.panelOpen)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="15" y1="3" x2="15" y2="21" />
-          </svg>
-        </button>
-      {/if}
       <!-- 家族唯一主题按钮：.icon-btn（28×28 + 40×40 命中区），三态 auto→light→dark。
            此前 CAD 只有显示菜单里的「主题」入口，界面上根本没有按钮。 -->
       <button
@@ -342,16 +285,84 @@
     </div>
   </header>
 
+  <!-- 第二行工具条（05-cad 设计稿 .toolbar）：只放真实存在的查看工具 ——
+       适应窗口 / 适应内容 / 测距 / 文字转正 / 图层面板。右侧单位来自
+       $INSUNITS（unitless 时不显示，不编造）。 -->
+  {#if app.scene}
+    <div class="toolbar" role="toolbar" aria-label={t("toolbarLabel")}>
+      <button
+        class="tool"
+        title={t("fitView")} aria-label={t("fitView")}
+        onclick={() => app.fitTick++}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 9V4h5M20 15v5h-5" />
+          <path d="M4 4l6 6M20 20l-6-6" />
+        </svg>
+      </button>
+      <button
+        class="tool"
+        title={t("fitContent")} aria-label={t("fitContent")}
+        onclick={() => app.fitCoreTick++}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+          <circle cx="12" cy="12" r="2.5" />
+        </svg>
+      </button>
+      <div class="sep" aria-hidden="true"></div>
+      <button
+        class="tool"
+        aria-pressed={app.tool === "measure"}
+        title={t("measure")} aria-label={t("measure")}
+        onclick={toggleTool}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21.3 8.7 15.3 14.7 9.3 8.7 15.3 2.7 21.3 8.7z" />
+          <path d="m2.7 21.3 6-6" />
+        </svg>
+      </button>
+      <button
+        class="tool"
+        aria-pressed={app.uprightText}
+        title={t("uprightText")} aria-label={t("uprightText")}
+        onclick={() => setUprightText(!app.uprightText)}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m5 7 7 10m0-10-7 10M6.2 14h11.6" />
+          <path d="M17 3v4m0 0 1.8-1.8M17 7l-1.8-1.8" />
+        </svg>
+      </button>
+      <div class="sep" aria-hidden="true"></div>
+      <button
+        class="tool"
+        aria-pressed={app.panelOpen}
+        title={t("panel")} aria-label={t("panel")}
+        onclick={() => (app.panelOpen = !app.panelOpen)}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <line x1="15" y1="3" x2="15" y2="21" />
+        </svg>
+      </button>
+      <div class="spacer"></div>
+      {#if unitLabel(app.scene.meta.insunits)}
+        <div class="units"><span>{t("units")}</span><b>{unitLabel(app.scene.meta.insunits)}</b></div>
+      {/if}
+    </div>
+  {/if}
+
   <!-- main 地标 + 已加载时的文档标题 h1（视觉隐藏）；空态的可见 h1 在 EmptyState 里。
        两种状态互斥，任何时刻恰好一个 h1（2026-10-25 审计 D-78：整屏 0 个标题、无 main） -->
   <main class="app-body">
     {#if app.scene}
       <h1 class="visually-hidden">{app.fileName}</h1>
     {/if}
-    <Stage onOpen={pickFile} />
+    <!-- 图层面板在画布左侧（05-cad 设计稿 .body 三栏的第一栏） -->
     {#if app.scene && app.panelOpen}
       <LayersPanel />
     {/if}
+    <Stage onOpen={pickFile} />
     {#if app.error && !app.loading}
       <div class="app-error" role="alert">
         <p class="app-error-msg">{app.error}</p>
@@ -380,30 +391,41 @@
             >{lay.name}</button>
           {/each}
         </span>
-      {:else}
-        <span class="status-item"><i class="status-dot"></i>{app.scene.meta.layouts[0]?.name ?? "—"}</span>
       {/if}
-      <span class="status-item">X {formatCoord(app.coords?.x ?? NaN, unitLabel(app.scene?.meta.insunits))}</span>
-      <span class="status-item">Y {formatCoord(app.coords?.y ?? NaN, unitLabel(app.scene?.meta.insunits))}</span>
+      <!-- 说人话（家族 §三.3）：进行中 = 呼吸点 + 文字（点永远不单独编码状态）；
+           结束 = 结果句（图层、耗时都来自真实 meta，不编造）。 -->
+      {#if app.loading}
+        <span class="status-item">
+          <i class="dot-live" role="img" aria-label={t("opening")}></i>{t("opening")}{#if app.progress.pct >= 0} {Math.round(app.progress.pct)}%{/if}
+        </span>
+      {:else}
+        <!-- 单布局时布局名并入结果句（多布局走上方 tabs），信息不丢 -->
+        <span class="status-item">
+          {app.scene.meta.layouts[0]?.name ? `${app.scene.meta.layouts[0].name} · ` : ""}{t("loaded")} · {formatCount(app.scene.meta.layers.length)} {t("layers")} · {formatDuration(app.scene.meta.parse_ms + app.scene.meta.convert_ms)}{app.scene.meta.was_dwg ? " (dwg)" : ""}
+        </span>
+      {/if}
       <span class="grow"></span>
+      <span class="status-item mono">X {formatCoord(app.coords?.x ?? NaN, unitLabel(app.scene?.meta.insunits))}</span>
+      <span class="status-item mono">Y {formatCoord(app.coords?.y ?? NaN, unitLabel(app.scene?.meta.insunits))}</span>
       {#if app.scene.meta.skipped > 0}
-        <span class="status-item status-muted" title={t("skippedHint")}>
+        <span class="status-item mono status-muted" title={t("skippedHint")}>
           {t("skipped")} {formatCount(app.scene.meta.skipped)}
         </span>
       {/if}
-      <span class="status-item">{t("zoom")} {app.zoomPct}%</span>
-      <span class="status-item">{t("segs")} {formatCount(app.scene.meta.segments)}</span>
-      <span class="status-item">{t("texts")} {formatCount(app.scene.meta.text_count)}</span>
-      <span class="status-item">{formatDuration(app.scene.meta.parse_ms + app.scene.meta.convert_ms)}{app.scene.meta.was_dwg ? " (dwg)" : ""}</span>
+      <span class="status-item mono">{t("zoom")} {app.zoomPct}%</span>
+      <span class="status-item mono">{t("segs")} {formatCount(app.scene.meta.segments)}</span>
+      <span class="status-item mono">{t("texts")} {formatCount(app.scene.meta.text_count)}</span>
     {:else}
       {#if app.loading}
-        <span class="status-item"><i class="status-dot"></i>{t("opening")}{#if app.progress.pct >= 0} {Math.round(app.progress.pct)}%{/if}</span>
+        <span class="status-item">
+          <i class="dot-live" role="img" aria-label={t("opening")}></i>{t("opening")}{#if app.progress.pct >= 0} {Math.round(app.progress.pct)}%{/if}
+        </span>
       {:else}
-        <!-- Offline is a feature, not a fault — neutral dot, red stays for errors. -->
-        <span class="status-item"><i class="status-dot"></i>{t("offline")}</span>
+        <!-- Offline is a feature, not a fault — neutral dot, red stays for in-progress. -->
+        <span class="status-item"><i class="status-dot" aria-hidden="true"></i>{t("offline")}</span>
       {/if}
       <span class="grow"></span>
-      <span class="status-item">v{VERSION}</span>
+      <span class="status-item mono">v{VERSION}</span>
     {/if}
     <!-- License chip (family L6): shown only for the direct channel before it is
          activated — the Store build is charged by the Store, and an extra

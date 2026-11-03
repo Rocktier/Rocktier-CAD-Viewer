@@ -53,6 +53,12 @@
         <span>{t("measuring")}</span>
         {#if app.measureResult}
           <b>{t("measured")} {formatDist(app.measureResult.dist, unitLabel(app.scene?.meta.insunits))}</b>
+          <!-- 诚实标注（05-cad 设计稿 .measure-tag 的「两端点已吸附」）：
+               只有两端都吸附到真实几何（端点/中点，Viewer 写入 snapped）才出现，
+               Shift 关闭吸附的测量保持沉默。 -->
+          {#if app.measureResult.snapped}
+            <span class="measure-note">{t("measureSnapped")}</span>
+          {/if}
         {/if}
       </div>
     {/if}

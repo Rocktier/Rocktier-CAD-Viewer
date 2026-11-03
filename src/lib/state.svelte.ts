@@ -168,6 +168,17 @@ export function setStatus(msg: string) {
   statusTimer = setTimeout(() => (app.status = ""), 3000);
 }
 
+/* 打开请求的兜底时限（毫秒）。open_drawing 永不返回（后端 IPC 挂住）时 app.loading
+   会永远为真，而 openFile 开头那句 `if (app.loading)` 从此把每一次重试都挡回来说
+   「已有图纸正在打开」—— 除了重启没有第二个出口。时限刻意给得很长：进度事件后端只在
+   一处 emit（src-tauri/src/commands.rs:194），大图纸某个阶段合法地能静默几十秒，
+   所以「没消息」不能当成「卡住」报，只有彻底不返回才够格。 */
+const OPEN_STALL_MS = 60_000;
+
+/* 第几次加载。兜底把 loading 锁放开之后，同一组 app.* 状态可能有两个加载在写
+   （旧的迟迟返回 + 用户点重试后的新的）；以最后一次点击为准，迟到者的结果丢弃。 */
+let loadSeq = 0;
+
 export async function openFile(path: string) {
   // One load at a time: a second drop while a big drawing is parsing would
   // race the first, and whichever finished last would win.  Say so instead of
@@ -184,15 +195,26 @@ export async function openFile(path: string) {
   const wasDwg = lower.endsWith(".dwg");
   app.error = "";
   app.loading = true;
+  const seq = ++loadSeq;
   app.loadingMsg = wasDwg ? t("converting") : t("parsing");
   app.progress = { pct: 0, phase: wasDwg ? "convert" : "parse", detail: "" };
   app.fileName = path.split(/[\\/]/).pop() ?? path;
   app.filePath = path;
   app.lastPath = path;
+  /* 兜底，理由见 OPEN_STALL_MS：到点把进行中状态交还给用户。错误卡自带「重试」
+     （走 app.lastPath）和「打开其他图纸」，挂住从此不再是死路。 */
+  let stalled = false;
+  const watchdog = setTimeout(() => {
+    if (seq !== loadSeq) return; // 后面已经有一次新请求，不该由这次去改界面
+    stalled = true;
+    app.loading = false;
+    app.error = `${t("errStalled")} — ${path}`;
+  }, OPEN_STALL_MS);
   // Subscribe before invoking: the backend emits phases from a worker thread.
   const unlisten = await listen<{ pct: number; phase: string; detail: string }>(
     "load-progress",
     (e) => {
+      if (seq !== loadSeq) return; // 迟到事件：别覆盖更新那一次的进度
       app.progress = e.payload;
       app.loadingMsg =
         e.payload.phase === "convert"
@@ -204,6 +226,10 @@ export async function openFile(path: string) {
   );
   try {
     const res = await invoke("open_drawing", { path });
+    if (seq !== loadSeq) return; // 被更新的请求取代：这次的结果整个丢弃，包括错误
+    // 兜底报过「没有返回」、结果它后来还是开成功了：那句话此刻已经不成立，
+    // 撤回来，否则图纸都画在屏幕上、错误卡还挂着说它没开成。
+    if (stalled) app.error = "";
     app.loadingMsg = t("building");
     app.progress = { pct: 97, phase: "build", detail: "" };
     const scene = parseBlob(res as ArrayBuffer);
@@ -218,11 +244,13 @@ export async function openFile(path: string) {
     app.tool = "pan";
     addRecent(path);
   } catch (e) {
+    if (seq !== loadSeq) return; // 迟到者报错也不该打断更新的那一次
     app.scene = null;
     app.error = `${t("errTitle")}: ${e}`;
   } finally {
+    clearTimeout(watchdog);
     unlisten();
-    app.loading = false;
+    if (seq === loadSeq) app.loading = false;
   }
 }
 

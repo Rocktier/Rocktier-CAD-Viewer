@@ -757,6 +757,12 @@ body {
   overflow-wrap: anywhere;
   line-height: 1.5;
 }
+
+/* 卡住兜底那条带的就是完整路径，而路径是要抄下来去排查的 —— body 上写着
+   user-select:none，不在这儿显式放开就选不中、也复制不了。 */
+.toast.error .toast-msg {
+  user-select: text;
+}
 .toast-actions {
   display: flex;
   gap: 8px;

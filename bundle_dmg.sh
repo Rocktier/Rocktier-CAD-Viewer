@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Wrap a signed .app in a DMG without notarization.
-# Output: $HOME/Downloads/Rocktier CAD Viewer.dmg
+# Wrap the signed .app in a DMG.
+# 签名与公证分工：.app 的签名在 build_app.sh（CI 里有证书时是 Developer ID），
+# DMG 的签名 + notarytool 公证在 workflow 的 "Sign + notarize the DMG" 那步。
+# Output: ${CAD_DMG_OUT:-$HOME/Downloads/Rocktier CAD Viewer.dmg}
+#   CI 传 CAD_DMG_OUT 指到 bundle/dmg，避免依赖 $HOME/Downloads；本地不传则维持旧行为。
 set -euo pipefail
 
 APP="$(pwd)/src-tauri/target/release/bundle/macos/Rocktier CAD Viewer.app"
@@ -9,7 +12,7 @@ if [ ! -d "$APP" ]; then
   exit 1
 fi
 
-# Verify ad-hoc signature + entitlements are present.
+# Verify the .app signature is valid and entitlements survived the re-sign.
 if ! codesign --verify --deep "$APP" 2>&1; then
   echo "▸ App signature invalid. Run ./build_app.sh first."
   exit 1
@@ -22,7 +25,7 @@ if [ -z "$CREATE_DMG" ] || [ ! -x "$CREATE_DMG" ]; then
 fi
 
 VOL_NAME="Rocktier CAD Viewer"
-OUT_DMG="$HOME/Downloads/Rocktier CAD Viewer.dmg"
+OUT_DMG="${CAD_DMG_OUT:-$HOME/Downloads/Rocktier CAD Viewer.dmg}"
 TMP_DMG="$(pwd)/src-tauri/target/release/bundle/dmg/Rocktier_CAD_Viewer.tmp.dmg"
 
 rm -f "$OUT_DMG"
@@ -44,7 +47,7 @@ echo "▸ Creating DMG via create-dmg..."
 
 # create-dmg places the .dmg alongside the .app by default; move to Downloads.
 FINAL_TMP="$(pwd)/src-tauri/target/release/bundle/dmg/Rocktier CAD Viewer.dmg"
-if [ -f "$FINAL_TMP" ]; then
+if [ -f "$FINAL_TMP" ] && [ "$FINAL_TMP" != "$OUT_DMG" ]; then
   mv -f "$FINAL_TMP" "$OUT_DMG"
 fi
 if [ -f "$TMP_DMG" ] && [ ! -f "$OUT_DMG" ]; then

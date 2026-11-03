@@ -78,8 +78,20 @@ $PB -c "Add :CFBundleDocumentTypes:1:LSItemContentTypes:2 string com.tianji.macm
 #    Tauri bundler does not inject the entitlements plist; without it
 #    WKWebView fails with "Could not create a com.apple.webkit.mach-bootstrap
 #    sandbox extension" and the app appears to do nothing on launch.
-echo "▸ Re-signing with entitlements..."
-codesign --force --deep --entitlements "$PLIST" -s - "$APP"
+#
+#    SIGN_IDENTITY 由 CI 注入：配了 Apple 证书就是 Developer ID（硬化运行时，
+#    公证的前置条件），没配则是 "-"（ad-hoc，与本地构建行为一致）。
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+echo "▸ Re-signing with entitlements (identity: $SIGN_IDENTITY)..."
+if [ "$SIGN_IDENTITY" = "-" ]; then
+  codesign --force --deep --entitlements "$PLIST" -s - "$APP"
+else
+  # dylib 与 sidecar 就在 Contents/MacOS 下，--deep 不保证覆盖非标准嵌套位置，
+  # 逐个签；公证会检查包里每一个可执行文件。
+  codesign --force --options runtime --timestamp -s "$SIGN_IDENTITY" "$MACOS_DIR/libredwg.0.dylib"
+  codesign --force --options runtime --timestamp -s "$SIGN_IDENTITY" "$MACOS_DIR/dwg2dxf"
+  codesign --force --deep --options runtime --timestamp --entitlements "$PLIST" -s "$SIGN_IDENTITY" "$APP"
+fi
 
 echo ""
 echo "▸ Done. App at: $APP"

@@ -75,16 +75,133 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
+      # Developer ID 证书可选：导入了就交给 build_app.sh 签 .app，DMG 随后公证；
+      # 没导入就退回 ad-hoc（产物与改动前一致），并在 CI 打 notice。
+      - name: Import Developer ID certificate (optional)
+        env:
+          APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${APPLE_CERT_P12:-}" ]; then
+            keychain="$RUNNER_TEMP/rocktier-signing.keychain-db"
+            echo "$APPLE_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security create-keychain -p "" "$keychain"
+            # 6 小时不锁：导入在本步，真正签名在 build_app.sh、公证在后面另一步，
+            # 中间隔着几分钟的 tauri build，15 分钟不活动锁会把 codesign 卡住。
+            security set-keychain-settings -lut 21600 "$keychain"
+            security unlock-keychain -p "" "$keychain"
+            security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
+              -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -k "" "$keychain" >/dev/null
+            security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+            identity=$(security find-identity -v -p codesigning "$keychain" \
+              | awk '/Developer ID Application/ {print $2; exit}')
+            if [ -z "$identity" ]; then
+              echo "::error::APPLE_CERT_P12 is set but contains no Developer ID Application identity."
+              exit 1
+            fi
+            echo "signing as $identity"
+            echo "SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          else
+            echo "::notice::No Developer ID certificate configured - ad-hoc signing. Downloaded copies will still be flagged by Gatekeeper."
+            echo "SIGN_IDENTITY=-" >> "$GITHUB_ENV"
+          fi
+
       - name: Build .app (re-signed, LibreDWG sidecar bundled)
         run: ./build_app.sh
 
+      # 把公证失败提前到「构建后几秒」：等 notarytool 跑完 10 分钟才报
+      # 「签名缺 secure timestamp」是最贵的失败方式。
+      - name: Assert .app signature before packaging
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/release/bundle/macos/Rocktier CAD Viewer.app"
+          codesign --verify --deep --strict "$APP"
+          info=$(codesign -dv --verbose=4 "$APP" 2>&1 || true)
+          if [ "${SIGN_IDENTITY:-}" = "-" ]; then
+            echo "::notice::ad-hoc build: timestamp/authority assertions and spctl skipped (by design)."
+          else
+            case "$info" in *"Authority=Developer ID Application"*) ;; *)
+              echo "::error::.app is missing Developer ID authority"; exit 1 ;; esac
+            case "$info" in *"Timestamp="*) ;; *)
+              echo "::error::.app has no secure timestamp - notarization would fail"; exit 1 ;; esac
+          fi
+
       - name: Build DMG
+        id: build_dmg
+        # create-dmg 偶发失败（同 Write 的 bundle_dmg.sh flake），给一次重试
+        continue-on-error: true
+        env:
+          # CI 不依赖 $HOME/Downloads：直接落到 bundle/dmg
+          CAD_DMG_OUT: src-tauri/target/release/bundle/dmg/Rocktier CAD Viewer.dmg
         run: ./bundle_dmg.sh
+
+      - name: Retry Build DMG (create-dmg flake)
+        if: steps.build_dmg.outcome == 'failure'
+        env:
+          CAD_DMG_OUT: src-tauri/target/release/bundle/dmg/Rocktier CAD Viewer.dmg
+        run: |
+          set -uo pipefail
+          # 清掉残留挂载与半成品，否则重试会撞在同一个残留上
+          hdiutil info 2>/dev/null | awk '/\/Volumes\// {print $NF}' \
+            | grep -i rocktier | while read -r m; do
+                echo "detaching $m"; hdiutil detach "$m" -force || true
+              done
+          rm -f "src-tauri/target/release/bundle/dmg/Rocktier CAD Viewer.dmg" \
+                "src-tauri/target/release/bundle/dmg/Rocktier_CAD_Viewer.tmp.dmg"
+          ./bundle_dmg.sh
+
+      # 公证的对象是整个 DMG；staple 把票据装回 DMG，离线也能验。
+      # 没有证书时只做 ad-hoc 签名，产物与旧版一致（Gatekeeper 仍会拦）。
+      - name: Sign + notarize the DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          dmg=$(find src-tauri/target/release/bundle/dmg -name '*.dmg' ! -name '*.tmp.dmg' -print -quit)
+          [ -n "$dmg" ] || { echo "::error::DMG not found in src-tauri/target/release/bundle/dmg"; exit 1; }
+          case "${SIGN_IDENTITY:-}" in
+            "-")
+              codesign -s - -fv "$dmg"
+              echo "::notice::DMG signed ad-hoc only - no notarization ticket; spctl skipped (by design)."
+              ;;
+            "")
+              echo "::error::SIGN_IDENTITY is empty - certificate step did not export it; refusing to sign with a blank identity."
+              exit 1
+              ;;
+            *)
+              keychain="$RUNNER_TEMP/rocktier-signing.keychain-db"
+              if [ -f "$keychain" ]; then security unlock-keychain -p "" "$keychain"; fi
+              codesign -s "$SIGN_IDENTITY" --timestamp -fv "$dmg"
+              xcrun notarytool submit "$dmg" \
+                --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+                --password "$APPLE_APP_PASSWORD" --wait
+              xcrun stapler staple "$dmg"
+              xcrun stapler validate "$dmg"
+
+              # 硬断言：DMG 必须是 Developer ID + secure timestamp（case 而非 grep，
+              # 避免 pipefail 下 codesign 被 SIGPIPE 误判）
+              info=$(codesign -dv --verbose=4 "$dmg" 2>&1 || true)
+              case "$info" in *"Authority=Developer ID Application"*) ;; *)
+                echo "::error::DMG signature is missing Developer ID authority"; exit 1 ;; esac
+              case "$info" in *"Timestamp="*) ;; *)
+                echo "::error::DMG signature has no secure timestamp"; exit 1 ;; esac
+              # Gatekeeper 兜底：用户双击的就是这个 dmg，必须 accepted
+              spctl -a -t open --context context:primary-signature -vv "$dmg" \
+                || { echo "::error::Gatekeeper rejected the notarized DMG"; exit 1; }
+              ;;
+          esac
+          codesign -dvvv "$dmg" 2>&1 | grep 'Signature=' || true
 
       - name: Prepare release artifact
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          cp "$HOME/Downloads/Rocktier CAD Viewer.dmg" "Rocktier-CAD-Viewer_${VERSION}_${{ matrix.arch }}.dmg"
+          dmg=$(find src-tauri/target/release/bundle/dmg -name '*.dmg' ! -name '*.tmp.dmg' -print -quit)
+          [ -n "$dmg" ] || { echo "::error::DMG not found"; exit 1; }
+          cp "$dmg" "Rocktier-CAD-Viewer_${VERSION}_${{ matrix.arch }}.dmg"
           ls -lh "Rocktier-CAD-Viewer_${VERSION}_${{ matrix.arch }}.dmg"
 
       - name: Upload artifact (main branch)

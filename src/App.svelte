@@ -11,7 +11,7 @@
   import ExportDialog from "./components/ExportDialog.svelte";
   import LicenseDialog from "./components/LicenseDialog.svelte";
   import UpdateDialog from "./components/UpdateDialog.svelte";
-  import { LOCALES, app, openFile, retryOpen, setStatus, setLang, setUprightText, type LangCode } from "./lib/state.svelte";
+  import { LOCALES, app, openFile, setStatus, setLang, setUprightText, type LangCode } from "./lib/state.svelte";
   import { openLicense, onLicenseExpired, refreshLicense, revalidateLicence } from "./lib/license";
   import { checkForUpdates, currentVersion, type UpdateResult, type UpdateState } from "./lib/updates";
   import { t } from "./lib/i18n.svelte";
@@ -363,15 +363,6 @@
       <LayersPanel />
     {/if}
     <Stage onOpen={pickFile} />
-    {#if app.error && !app.loading}
-      <div class="app-error" role="alert">
-        <p class="app-error-msg">{app.error}</p>
-        <div class="app-error-actions">
-          <button class="btn" onclick={retryOpen}>{t("retry")}</button>
-          <button class="btn ghost" onclick={pickFile}>{t("openAnother")}</button>
-        </div>
-      </div>
-    {/if}
   </main>
 
   {#if app.status}

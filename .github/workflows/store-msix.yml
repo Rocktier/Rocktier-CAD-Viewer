@@ -1,0 +1,120 @@
+name: Store MSIX (Microsoft Store)
+
+# 只在需要出商店提交包时手动触发（Actions → Run workflow）。
+#
+# 为什么不复用 build.yml 的 Windows job：两个渠道共用 src-tauri/target，
+# ROCKTIER_CHANNEL 是 option_env! 的编译期常量，cargo 不因环境变量变化重编，
+# 商店包会静默复用直链二进制（带自研试用墙）。独立 runner + job 级 env 是
+# 物理隔离，不依赖 Cargo 是否检测到环境变量变化。
+#
+# 与 build.yml 的关系：
+#   build.yml → 直链渠道（msi / nsis / msix），带自研试用墙
+#   本文件    → 商店渠道（msix / msixbundle），无试用墙
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-store-msix:
+    name: Build Microsoft Store MSIX (store channel)
+    runs-on: windows-latest
+    env:
+      ROCKTIER_CHANNEL: store
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.98.0
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Setup npm registry
+        shell: pwsh
+        run: npm config set registry https://registry.npmmirror.com
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm dependencies
+        run: npm install
+
+      # DWG 支持靠随包分发的 dwg2dxf.exe；tauri.conf.json 已声明该目录为
+      # bundle resources，缺文件会让 tauri_build 直接失败。
+      - name: Provision LibreDWG sidecar (dwg2dxf.exe)
+        shell: pwsh
+        run: pwsh -ExecutionPolicy Bypass -File scripts/provision-libredwg-windows.ps1 -Download
+
+      - name: Assert store channel
+        run: |
+          test "${ROCKTIER_CHANNEL}" = "store" || {
+            echo "::error::ROCKTIER_CHANNEL is not store - refusing to build"; exit 1; }
+          echo "ROCKTIER_CHANNEL=${ROCKTIER_CHANNEL}"
+
+      # 商店拒绝占位磁贴（10.1.1.11）。Assets 提交在仓内，这里只防「文件在但图是
+      # 纯色占位」——历史首包里出过 554 bytes 的纯黑宽磁贴。
+      - name: Assert store tiles are real art
+        run: |
+          set -euo pipefail
+          for f in StoreLogo Square44x44Logo Square150x150Logo Wide310x150Logo; do
+            p="src-tauri/gen/windows/Assets/$f.png"
+            test -f "$p" || { echo "::error::missing tile $p"; exit 1; }
+            size=$(wc -c < "$p")
+            test "$size" -gt 1000 || {
+              echo "::error::tile $f looks like a placeholder ($size bytes)"; exit 1; }
+            echo "  $f ${size} bytes"
+          done
+
+      - name: Build MSIX (store channel)
+        run: npx tauri-windows-bundle build --runner npm --verbose
+
+      - name: Verify store package
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          # 不吞错误：产物找不到就让 CI 红，不静默上传空目录。
+          find src-tauri/target/msix -maxdepth 1 \( -name '*.msix' -o -name '*.msixbundle' \) \
+            -exec cp {} artifacts/ \;
+          test "$(find artifacts -name '*.msix*' | wc -l)" -gt 0 || {
+            echo "::error::no MSIX produced"; exit 1; }
+
+          # 从真实包内读清单（不是只看生成物），核对身份与能力声明。
+          pkg=$(find artifacts -name '*.msix' -not -name '*.msixbundle' | head -1)
+          test -n "$pkg" || { echo "::error::no .msix (only bundle?)"; exit 1; }
+          unzip -p "$pkg" AppxManifest.xml > artifacts/AppxManifest.xml
+
+          grep -Fq 'Name="Rocktier.RocktierCADViewer"' artifacts/AppxManifest.xml || {
+            echo "::error::Identity Name mismatch"; exit 1; }
+          grep -Fq 'Publisher="CN=4EA39D7A-401B-4D56-98D0-8ECB1F2B8DF7"' artifacts/AppxManifest.xml || {
+            echo "::error::Publisher mismatch"; exit 1; }
+          grep -Fq 'Capability Name="runFullTrust"' artifacts/AppxManifest.xml || {
+            echo "::error::runFullTrust missing"; exit 1; }
+          if grep -Fq 'internetClient' artifacts/AppxManifest.xml; then
+            echo "::error::unexpected internetClient capability"; exit 1; fi
+
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          grep -Fq "Version=\"${VERSION}.0\"" artifacts/AppxManifest.xml || {
+            echo "::error::Version mismatch (expected ${VERSION}.0)"; exit 1; }
+
+          printf 'ROCKTIER_CHANNEL=store\nIdentity Name=Rocktier.RocktierCADViewer\n' \
+            > artifacts/STORE-CHANNEL.txt
+          ls -la artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RocktierCAD-store-msix
+          path: artifacts/*
+          if-no-files-found: error

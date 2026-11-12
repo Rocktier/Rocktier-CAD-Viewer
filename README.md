@@ -13,7 +13,7 @@ WebGL hairlines with a 2D canvas overlay for text and measuring.
 | **Paper space** | Each `*Paper_Space*` block as its own layout, model space projected through each VIEWPORT |
 | **Measure** | Measuring directly on the canvas |
 | **Open with** | `.dwg` / `.dxf` registered as document types; Windows/Linux hand files to the running window via the single-instance plugin |
-| **Private** | Fully offline. No network stack, no upload, no account, no telemetry |
+| **Private** | Your drawings are processed fully offline; no upload, no account, no telemetry. License activation and "Check for updates" do use the network, but only when you trigger them. Full request list: https://rocktier.com/privacy |
 | **Fast** | WebGL hairlines plus a 2D canvas overlay for text, so large drawings stay interactive |
 
 What is *not* drawn is listed under [Known gaps](#known-gaps) rather than left for you

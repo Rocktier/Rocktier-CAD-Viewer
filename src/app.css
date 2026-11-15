@@ -141,7 +141,15 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  /* 品牌柔光底（D-158 §2）：窗口不透明，玻璃要透出颜色就得把渐变画进应用自己。
+     三团 radial 在前 = 在上；线性底垫底。§9：3D 视口（.stage）保持不透明，
+     玻璃只做 chrome 层。令牌在 styles/glass.css（L0 副本）。 */
+  background-color: var(--canvas);
+  background-image:
+    radial-gradient(120% 90% at 12% 0%, var(--wash-1) 0%, transparent 55%),
+    radial-gradient(100% 80% at 92% 8%, var(--wash-2) 0%, transparent 52%),
+    radial-gradient(120% 100% at 60% 110%, var(--wash-3) 0%, transparent 58%),
+    linear-gradient(160deg, var(--canvas) 0%, var(--canvas-2) 50%, var(--canvas-3) 100%);
 }
 
 .app-head {
@@ -151,9 +159,11 @@ body {
   align-items: center;
   gap: var(--s4, 1rem);
   padding: 0 16px;
-  background: var(--head-bg);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
+  /* chrome 玻璃（D-158 §1）：实色 → 半透，backdrop-filter 才有内容可透 */
+  background: linear-gradient(180deg, var(--glass-chrome-a) 0%, var(--glass-chrome-b) 100%);
+  box-shadow: inset 0 1px 0 var(--glass-top-sheen), inset 0 -1px 0 var(--glass-seam);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   z-index: 10;
 }
 
@@ -262,8 +272,11 @@ body {
   gap: 4px;
   height: var(--toolbar-h);
   padding: 0 12px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  /* chrome 玻璃（D-158 §1，工具条同标题栏一档） */
+  background: linear-gradient(180deg, var(--glass-chrome-a) 0%, var(--glass-chrome-b) 100%);
+  box-shadow: inset 0 1px 0 var(--glass-top-sheen), inset 0 -1px 0 var(--glass-seam);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 }
 .tool {
   flex: none;
@@ -437,10 +450,12 @@ body {
   z-index: 30;
   max-width: min(560px, 84%);
   padding: 8px 14px;
-  border: 1px solid var(--elev-border);
+  /* float 玻璃（D-158 §1 pill 档）：浮动提示条 */
   border-radius: var(--radius-sm);
-  background: var(--bg-floating);
-  box-shadow: var(--elev-floating);
+  background: linear-gradient(180deg, var(--glass-float-a) 0%, var(--glass-float-b) 100%);
+  box-shadow: inset 0 0 0 0.5px var(--glass-hairline), var(--glass-shadow-pill);
+  -webkit-backdrop-filter: blur(20px) saturate(var(--glass-saturate));
+  backdrop-filter: blur(20px) saturate(var(--glass-saturate));
   color: var(--text-primary);
   font-size: 12px;
   line-height: 1.5;
@@ -942,9 +957,11 @@ body {
   align-items: center;
   gap: 18px;
   padding: 0 14px;
-  border-top: 1px solid var(--border);
-  background: var(--head-bg);
-  backdrop-filter: blur(20px);
+  /* chrome 玻璃（D-158 §1，同家族状态条）：顶缘 seam 代替实线边框 */
+  background: linear-gradient(180deg, var(--glass-chrome-a) 0%, var(--glass-chrome-b) 100%);
+  box-shadow: inset 0 0 0 0.5px var(--glass-hairline), inset 0 1px 0 var(--glass-seam);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   font-family: var(--mono);
   font-size: 0.68rem;
   color: var(--text3);

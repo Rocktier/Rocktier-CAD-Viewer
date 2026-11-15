@@ -11,7 +11,7 @@
   import ExportDialog from "./components/ExportDialog.svelte";
   import LicenseDialog from "./components/LicenseDialog.svelte";
   import UpdateDialog from "./components/UpdateDialog.svelte";
-  import { LOCALES, app, openFile, setStatus, setLang, setUprightText, type LangCode } from "./lib/state.svelte";
+  import { app, openFile, setStatus, setLang, setUprightText } from "./lib/state.svelte";
   import { openLicense, onLicenseExpired, refreshLicense, revalidateLicence } from "./lib/license";
   import { checkForUpdates, currentVersion, type UpdateResult, type UpdateState } from "./lib/updates";
   import { t } from "./lib/i18n.svelte";
@@ -254,26 +254,27 @@
           </svg>
         {/if}
       </button>
-      <!-- 中英两门（2026-10-13 家族收敛裁定，见 family.json globalRules.$locales_2026_10_13）。
-           用原生 <select>：两个选项不需要搜索，原生控件在 Windows/macOS 行为一致，
-           键盘与读屏器支持免费获得。选项显示 endonym（语言自称）。
-           保留原来的 invoke("build_menu")：切换语言必须同步重建原生菜单，
+      <!-- 语言切换收成 A+地球图标按钮（2026-11-15 用户令）：中英两门对切。
+           保留 invoke("build_menu")：切换语言必须同步重建原生菜单，
            否则工具栏是英文、菜单还是中文。 -->
-      <select
-        class="ghost lang-btn"
-        value={app.lang}
-        onchange={(e) => {
-          const next = e.currentTarget.value as LangCode;
+      <button
+        class="icon-btn"
+        title={t("langLabel")}
+        aria-label={t("langLabel")}
+        onclick={() => {
+          const next = app.lang === "en" ? "zh" : "en";
           setLang(next);
           invoke("build_menu", { lang: next }).catch(() => {});
         }}
-        title={t("langLabel")}
-        aria-label={t("langLabel")}
       >
-        {#each LOCALES as l (l.code)}
-          <option value={l.code}>{l.endonym}</option>
-        {/each}
-      </select>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 16 9 5l5 11" />
+          <path d="M6 12h6" />
+          <circle cx="16.5" cy="16.5" r="4.5" />
+          <ellipse cx="16.5" cy="16.5" rx="2" ry="4.5" />
+          <path d="M12.2 16.5h8.6" />
+        </svg>
+      </button>
       <button class="ghost" title={t("about")} aria-label={t("about")} onclick={() => (app.aboutOpen = true)}>i</button>
     </div>
   </header>

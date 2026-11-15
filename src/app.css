@@ -712,8 +712,12 @@ body {
 .toast {
   position: absolute;
   left: 50%;
-  bottom: 52px;
+  bottom: 16px;
   transform: translateX(-50%);
+  /* 卡片本身不拦点击：错误卡又高又居中，视口矮时（实测 696px）会压住空态的
+     Recent 芯片，elementFromPoint 命中卡片把点击抢走。卡片只负责展示，
+     可点的只有卡内按钮（.toast-btn 单独恢复 pointer-events）。 */
+  pointer-events: none;
   background: var(--bg2);
   border: 1px solid var(--red);
   color: var(--text);
@@ -771,6 +775,7 @@ body {
   margin-top: 10px;
 }
 .toast-btn {
+  pointer-events: auto; /* 卡片不拦点击，但卡内按钮必须可点 */
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

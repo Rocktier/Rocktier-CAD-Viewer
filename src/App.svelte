@@ -243,16 +243,10 @@
         aria-label={`${t("themeBtn")}: ${themeLabel()}`}
         onclick={toggleUiTheme}
       >
-        {#if uiTheme === "dark"}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-          </svg>
-        {:else}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
-          </svg>
-        {/if}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
       </button>
       <!-- 语言切换收成 A+地球图标按钮（2026-11-15 用户令）：中英两门对切。
            保留 invoke("build_menu")：切换语言必须同步重建原生菜单，
@@ -268,11 +262,9 @@
         }}
       >
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3.5 16.5 8.8 4.5l5.3 12" />
-          <path d="M5.5 11.5h6.6" />
-          <circle cx="16.8" cy="16.8" r="5.2" />
-          <ellipse cx="16.8" cy="16.8" rx="2.3" ry="5.2" />
-          <path d="M11.9 16.8h9.8" />
+          <circle cx="12" cy="12" r="9" />
+          <ellipse cx="12" cy="12" rx="3.8" ry="9" />
+          <path d="M3 12h18" />
         </svg>
       </button>
       <button class="ghost" title={t("about")} aria-label={t("about")} onclick={() => (app.aboutOpen = true)}>i</button>

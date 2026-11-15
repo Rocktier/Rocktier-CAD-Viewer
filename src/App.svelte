@@ -32,19 +32,18 @@
   }
 
   /* ── 界面主题 ───────────────────────────────────────────────────
-     三态 auto → light → dark → auto（家族 §6.5 唯一状态机）。
+     两态 light ⇄ dark（2026-11-15 用户令：全家族取消「跟随系统」）。
      注意与「图纸主题」区分：导出时的 dark / print 是画布配色（见 ExportDialog），
      这里的 data-theme 只管界面外壳。
-     存储键沿用 "rocktier-cad-ui-theme"：改键会让老用户偏好丢失，只扩值域。 */
+     存储键沿用 "rocktier-cad-ui-theme"：改键会让老用户偏好丢失，不换键。 */
   // 2026-10-04 键改名 → "rocktier.theme"，与家族其余产品同名同形（跨产品记忆负担最小）。
   // 上一行注释担心「改键会让老用户偏好丢失」是对的 —— 所以读取处回落旧键，两条同时成立。
   const THEME_KEY = "rocktier.theme";
   const THEME_KEY_LEGACY = "rocktier-cad-ui-theme";
   const APP_VERSION = currentVersion();
 
-  const THEME_CYCLE = ["auto", "light", "dark"] as const;
-  type UiThemeMode = (typeof THEME_CYCLE)[number];
-  let uiTheme = $state<UiThemeMode>("auto");
+  type UiThemeMode = "light" | "dark";
+  let uiTheme = $state<UiThemeMode>("dark");
 
   /* 更新检查。状态只由用户点击推进 —— 没有任何 effect 会自动发起联网请求，
      这是「除非你要求，应用不会联网」这条承诺的落点。 */
@@ -79,28 +78,34 @@
     return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
   }
 
-  /** auto 落成实际生效值 —— data-theme 只接受 light/dark。 */
-  function resolveUiTheme(mode: UiThemeMode): "dark" | "light" {
-    return mode === "auto" ? systemTheme() : mode;
-  }
-
   function readUiTheme(): UiThemeMode {
     try {
       const saved = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(THEME_KEY_LEGACY);
-      if (saved === "light" || saved === "dark" || saved === "auto") return saved;
+      if (saved === "light" || saved === "dark") return saved;
+      if (saved === "auto") {
+        // 旧「跟随系统」用户：按读取当时的系统值一次性落定并持久化，此后不跟随。
+        const resolved = systemTheme();
+        try {
+          localStorage.setItem(THEME_KEY, resolved);
+        } catch {
+          /* ignore */
+        }
+        return resolved;
+      }
     } catch {
       /* 隐私模式下读不了，仅本次会话生效 */
     }
-    return "auto";
+    // 从没选过：深色（家族基线；2026-11-15 起不再跟随系统）
+    return "dark";
   }
 
   function applyUiTheme(mode: UiThemeMode) {
     uiTheme = mode;
-    document.documentElement.setAttribute("data-theme", resolveUiTheme(mode));
+    document.documentElement.setAttribute("data-theme", mode);
   }
 
   function toggleUiTheme() {
-    const next = THEME_CYCLE[(THEME_CYCLE.indexOf(uiTheme) + 1) % THEME_CYCLE.length];
+    const next: UiThemeMode = uiTheme === "dark" ? "light" : "dark";
     try {
       localStorage.setItem(THEME_KEY, next);
     } catch {
@@ -110,9 +115,7 @@
   }
 
   function themeLabel(): string {
-    if (uiTheme === "light") return t("themeModeLight");
-    if (uiTheme === "dark") return t("themeModeDark");
-    return t("themeModeAuto");
+    return uiTheme === "light" ? t("themeModeLight") : t("themeModeDark");
   }
 
   /** Open a drawing the OS handed us (file association / "Open with"). */
@@ -123,14 +126,8 @@
   }
 
   onMount(() => {
-    // 恢复上次选择的界面主题（没选过 = 跟随系统）
+    // 恢复上次选择的界面主题（2026-11-15 起两态：light ⇄ dark，取消「跟随系统」）
     applyUiTheme(readUiTheme());
-    // auto 态下系统外观变了要跟着变；light/dark 是明确选择，不动。
-    const themeMq = window.matchMedia("(prefers-color-scheme: light)");
-    const onThemeChange = () => {
-      if (uiTheme === "auto") applyUiTheme("auto");
-    };
-    themeMq.addEventListener("change", onThemeChange);
     const unlisteners: Array<() => void> = [];
     let cancelled = false;
     let dragTimer: ReturnType<typeof setTimeout> | undefined;
@@ -236,7 +233,8 @@
         {t("exportTitle")}
       </button>
     {/if}
-      <!-- 家族唯一主题按钮：.icon-btn（28×28 + 40×40 命中区），三态 auto→light→dark。
+      <!-- 家族唯一主题按钮：.icon-btn（28×28 + 40×40 命中区），两态 light⇄dark，
+           图标只做太阳 / 月亮（2026-11-15 用户令：取消「跟随系统」）。
            此前 CAD 只有显示菜单里的「主题」入口，界面上根本没有按钮。 -->
       <button
         class="icon-btn"
@@ -245,12 +243,7 @@
         aria-label={`${t("themeBtn")}: ${themeLabel()}`}
         onclick={toggleUiTheme}
       >
-        {#if uiTheme === "auto"}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="2.5" y="4" width="19" height="13" rx="2" />
-            <path d="M8 20.5h8M12 17v3.5" />
-          </svg>
-        {:else if uiTheme === "dark"}
+        {#if uiTheme === "dark"}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />

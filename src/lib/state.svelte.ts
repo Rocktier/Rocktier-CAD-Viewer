@@ -44,7 +44,9 @@ function initialLang(): LangCode {
   /* 读 rocktier.lang，回落旧键 rcv.lang —— 61a4ef5 时代的构建把偏好写在
      rcv.* 下，那次用户的数据还在。语言是用户感知最强的偏好，
      重置一次就等于「中文用户变英文界面」（MD 同款改名也是留旧键回落）。 */
-  const saved = stored("rocktier.lang") ?? stored("rcv.lang");
+  /* 2026-11-18 起与 PDF 仓同构：每应用命名空间 rocktier.cad.lang；
+     旧键 rocktier.lang / rcv.lang 仅作读取回落，一次迁移后不再使用。 */
+  const saved = stored("rocktier.cad.lang") ?? stored("rocktier.lang") ?? stored("rcv.lang");
   if (isLang(saved)) return saved;
   return "en";
 }
@@ -102,8 +104,9 @@ export function setLang(lang: LangCode) {
        （family.json storageKeyNamespace，storage-key-namespace 闸门守着）。
        1a93a60 归一时只改了写、漏了读，从那时起语言偏好就再也存不住；
        e158b95 发现后把写改回了 rcv.lang —— 修好了功能、违反了契约。
-       正解是读写都回 rocktier.lang，旧键只在读时回落。 */
-    localStorage.setItem("rocktier.lang", lang);
+       2026-11-18 起按用户令全家对齐 PDF 的每应用命名空间：
+       读写都用 rocktier.cad.lang，旧键只在读时回落。 */
+    localStorage.setItem("rocktier.cad.lang", lang);
   } catch {
     /* storage unavailable */
   }

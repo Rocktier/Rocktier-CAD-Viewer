@@ -118,6 +118,7 @@ pub fn build(app: &tauri::AppHandle, lang: &str) -> tauri::Result<()> {
     let mail_i = MenuItem::with_id(app, "feedback", m.feedback, true, None::<&str>)?;
     // 购买页上写着"打开应用 → License → 输入激活码"，所以应用里必须真有一个能到
     // 那儿的入口（授权胶囊在已激活/商店版下会隐藏，帮助菜单是常驻入口）。
+    // 这两项只在直发轨出现，商店版由渠道分支挡掉（见下面的 help_menu）。
     // 检查更新：只 emit "check-updates"，联网由前端 lib/updates.ts 做。
     let update_i = MenuItem::with_id(app, "check-updates", m.check_updates, true, None::<&str>)?;
     let license_i = MenuItem::with_id(app, "license", m.license, true, None::<&str>)?;
@@ -203,17 +204,29 @@ pub fn build(app: &tauri::AppHandle, lang: &str) -> tauri::Result<()> {
         ],
     )?;
 
-    let help_menu = Submenu::with_items(
-        app,
-        m.help,
-        true,
-        &[&update_i, &license_i, &site_i, &mail_i],
-    )?;
+    /* 商店渠道不出 Help 菜单，与 Pic2WebP / OCR 同形（两仓已过商店审核）：
+       「检查更新」是应用外更新入口（Apple 2.4.5(vii) / 微软 10.8.2、10.8.4），
+       「官方网站」会把用户引向应用外购买（Apple 3.1.1 / 微软 10.8.2、10.8.4），
+       「授权」是自研付费墙入口（enforced() 在 store 渠道已恒 false，入口一并撤掉）。
+       准则 §18.6 第 6 条与 §19 第 4 条要求这四项都不出现 —— 只把 enforced() 置 false
+       不够。直发轨保持原样。
+       运行时未抓包验证，只做静态可达性判定（D-131），不写「已验证」。 */
+    let help_menu = if crate::license::channel() == "direct" {
+        Some(Submenu::with_items(app, m.help, true, &[&update_i, &license_i, &site_i, &mail_i])?)
+    } else {
+        None
+    };
 
-    let menu = Menu::with_items(
-        app,
-        &[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu, &help_menu],
-    )?;
+    let menu = match help_menu.as_ref() {
+        Some(help) => Menu::with_items(
+            app,
+            &[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu, help],
+        )?,
+        None => Menu::with_items(
+            app,
+            &[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu],
+        )?,
+    };
     app.set_menu(menu)?;
     Ok(())
 }
